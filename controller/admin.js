@@ -113,7 +113,7 @@ const getAllLeave = asyncErrorWrapper(async (req, res, next) => {
 });
 
 const statusUpdate = asyncErrorWrapper(async (req, res, next) => {
-  const { leaveId, status } = req.body;
+  const { leaveId, status, rejectionReason } = req.body;
 
   // Geçerli bir durum kontrolü
   const validStatuses = ["Onaylandı", "Reddedildi", "Beklemede"];
@@ -122,17 +122,49 @@ const statusUpdate = asyncErrorWrapper(async (req, res, next) => {
   }
 
   try {
+    // İzin talebini bul
+    const leave = await Leave.findById(leaveId);
+
+    // Eğer izin talebi bulunamazsa hata fırlat
+    if (!leave) {
+      return next(new CustumError("İzin talebi bulunamadı.", 404));
+    }
+
+    // Eğer izin talebi zaten "Onaylandı" veya "Reddedildi" ise güncelleme yapılmasın
+    if (leave.status === "Onaylandı" || leave.status === "Reddedildi") {
+      return next(
+        new CustumError(
+          "İzin talebi zaten sonuçlandırılmış, tekrar güncellenemez.",
+          400
+        )
+      );
+    }
+
+    // Eğer durum "Reddedildi" ise, reddetme nedeni kontrolü yapılmalıdır.
+    if (
+      status === "Reddedildi" &&
+      (!rejectionReason || rejectionReason.trim() === "")
+    ) {
+      return next(new CustumError("Reddetme nedeni belirtilmelidir.", 400));
+    }
+
+    // Güncelleme verisi hazırlanıyor
+    const updateData = { status };
+
+    // Eğer durum "Reddedildi" ise, rejectionReason da ekleniyor
+    if (status === "Reddedildi") {
+      updateData.rejectionReason = rejectionReason;
+    } else {
+      // Durum "Onaylandı" veya "Beklemede" olduğunda rejectionReason boş olarak kaydedilir
+      updateData.rejectionReason = "";
+    }
+
     // İzin talebini ID ile bul ve durumunu güncelle
     const updatedLeave = await Leave.findByIdAndUpdate(
       leaveId,
-      { status: status },
+      updateData,
       { new: true, runValidators: true } // `new: true` yeni güncellenmiş dökümanı döndürür
     );
-
-    // Eğer izin talebi bulunamazsa hata fırlat
-    if (!updatedLeave) {
-      return next(new CustumError("İzin talebi bulunamadı.", 404));
-    }
 
     res.status(200).json({
       success: true,

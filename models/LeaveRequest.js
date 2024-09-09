@@ -16,7 +16,7 @@ const LeaveSchema = new Schema({
     required: true,
   },
   tcNo: {
-    type: Number,
+    type: String,
     required: true,
     maxlength: 11,
   },
@@ -63,7 +63,14 @@ const LeaveSchema = new Schema({
   status: {
     type: String,
     enum: ["Onaylandı", "Reddedildi", "Beklemede"], // Durum için enum kontrolü
-    default: "beklemede",
+    default: "Beklemede",
+  },
+  rejectionReason: {
+    type: String,
+    required: function () {
+      return this.status === "Reddedildi"; // Eğer status 'Reddedildi' ise bu alan zorunludur.
+    },
+    default: "",
   },
   createdAt: {
     type: Date,

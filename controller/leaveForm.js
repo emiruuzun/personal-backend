@@ -45,6 +45,7 @@ const leaveSave = asyncErrorWrapper(async (req, res, next) => {
       data: newLeaveRequest,
     });
   } catch (error) {
+    console.error("Detaylar:", error.errors); // Detaylı hata mesajları için
     // Veritabanına kaydederken bir hata oluşursa hata fırlat
     return next(
       new CustomError("İzin talebi kaydedilemedi. Lütfen tekrar deneyin.", 500)
