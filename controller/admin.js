@@ -1,3 +1,4 @@
+const onlineUsers = require("../util/onlineUsers");
 const CustumError = require("../helpers/error/CustumError");
 const User = require("../models/User");
 const Leave = require("../models/LeaveRequest");
@@ -166,6 +167,16 @@ const statusUpdate = asyncErrorWrapper(async (req, res, next) => {
       { new: true, runValidators: true } // `new: true` yeni güncellenmiş dökümanı döndürür
     );
 
+    const userId = leave.userId.toString(); // leave içindeki
+    const ownerSocketId = onlineUsers[userId]; // Kullanıcının socket ID'si
+    if (ownerSocketId) {
+      req.io.to(ownerSocketId).emit("leaveStatusUpdated", {
+        message: `İzin talebinizin durumu "${status}" olarak güncellendi.`,
+        leave: updatedLeave,
+      });
+    } else {
+      console.log(`User ${userId} is not connected.`);
+    }
     res.status(200).json({
       success: true,
       message: "İzin durumu başarıyla güncellendi.",
