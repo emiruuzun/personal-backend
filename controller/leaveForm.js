@@ -12,8 +12,6 @@ const leaveSave = asyncErrorWrapper(async (req, res, next) => {
     startDate,
     endDate,
     leaveDays,
-    roadLeaveDays,
-    address,
     contactNumber,
     reason,
   } = req.body;
@@ -30,8 +28,6 @@ const leaveSave = asyncErrorWrapper(async (req, res, next) => {
       startDate,
       endDate,
       leaveDays,
-      roadLeaveDays: roadLeaveDays || 0,
-      address,
       contactNumber,
       reason,
       userId,
