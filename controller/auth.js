@@ -2,8 +2,6 @@ const User = require("../models/User");
 const Announcemen = require("../models/Announcement");
 const CustumError = require("../helpers/error/CustumError");
 const asyncErrorWrapper = require("express-async-handler");
-const sendEmail = require("../helpers/libraries/sendEmail");
-const generateVerificationToken = require("../util/emailVefiyToken");
 const { sendJwtToClient } = require("../helpers/authorization/tokenHelpers");
 const {
   validateUserInput,
@@ -11,55 +9,6 @@ const {
 } = require("../helpers/authorization/input/inputHelpres");
 
 // User Register
-const register = asyncErrorWrapper(async (req, res, next) => {
-  const { name, email, password, role } = req.body;
-
-  const existingUser = await User.findOne({ email });
-  if (existingUser) {
-    return next(
-      new CustumError(
-        "This email address is already in use. Please try another email.",
-        400
-      )
-    );
-  }
-
-  let verificationToken;
-  if (process.env.NODE_ENV !== "development") {
-    verificationToken = generateVerificationToken();
-  }
-
-  const user = await User.create({
-    name,
-    email,
-    password,
-    role,
-    verificationToken,
-    isVerify: process.env.NODE_ENV === "development",
-  });
-
-  if (process.env.NODE_ENV !== "development") {
-    const verifyURL = `${process.env.CLIENT_URL}=${verificationToken}`;
-    console.log(verifyURL);
-    const subject = "Account Verification";
-    const text = `Please click the following link to verify your account: ${verifyURL}`;
-
-    const mailOptions = {
-      from: process.env.SMTP_USER,
-      to: user.email,
-      subject,
-      text,
-    };
-
-    await sendEmail(mailOptions);
-  }
-
-  res.status(201).json({
-    success: true,
-    message:
-      "User registered successfully. Please check your email to verify your account.",
-  });
-});
 
 // User verify Token
 const verify = asyncErrorWrapper(async (req, res, next) => {
@@ -226,7 +175,6 @@ const feed = asyncErrorWrapper(async (req, res, next) => {
 });
 
 module.exports = {
-  register,
   login,
   verify,
   logout,

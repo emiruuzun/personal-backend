@@ -36,6 +36,26 @@ const UserSchema = new Schema({
     type: Boolean,
     default: false,
   },
+  position: {
+    type: String,
+    required: [true, "Please provide a position"],
+  },
+  tcNo: {
+    type: String,
+    required: [true, "Please provide a TC number"],
+    unique: true, // TC Kimlik numarası benzersiz olmalıdır
+    match: [/^\d{11}$/, "Please provide a valid 11-digit TC number"],
+  },
+  contact: {
+    type: String,
+    required: [true, "Please provide a contact number"],
+    match: [/^\d+$/, "Please provide a valid contact number"],
+  },
+  status: {
+    type: String,
+    enum: ["Aktif", "İzinli", "Pasif"],
+    default: "Aktif",
+  },
   profile_image: {
     type: String,
     default: "default.jpg",

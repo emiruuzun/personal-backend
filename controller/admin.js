@@ -2,8 +2,66 @@ const onlineUsers = require("../util/onlineUsers");
 const CustumError = require("../helpers/error/CustumError");
 const User = require("../models/User");
 const Leave = require("../models/LeaveRequest");
+const sendEmail = require("../helpers/libraries/sendEmail");
+const generateVerificationToken = require("../util/emailVefiyToken");
 const Announcement = require("../models/Announcement");
+const CompanySc = require("../models/CompanySchema ");
 const asyncErrorWrapper = require("express-async-handler");
+
+const register = asyncErrorWrapper(async (req, res, next) => {
+  const { name, email, password, position, tcNo, contact, status, role } =
+    req.body;
+  console.log(role);
+  const existingUser = await User.findOne({ email });
+  if (existingUser) {
+    return next(
+      new CustumError(
+        "This email address is already in use. Please try another email.",
+        400
+      )
+    );
+  }
+
+  let verificationToken;
+  if (process.env.NODE_ENV !== "development") {
+    verificationToken = generateVerificationToken();
+  }
+
+  const user = await User.create({
+    name,
+    email,
+    password,
+    position,
+    role,
+    tcNo,
+    contact,
+    status,
+    verificationToken,
+    isVerify: process.env.NODE_ENV === "development",
+  });
+
+  if (process.env.NODE_ENV !== "development") {
+    const verifyURL = `${process.env.CLIENT_URL}=${verificationToken}`;
+    console.log(verifyURL);
+    const subject = "Account Verification";
+    const text = `Please click the following link to verify your account: ${verifyURL}`;
+
+    const mailOptions = {
+      from: process.env.SMTP_USER,
+      to: user.email,
+      subject,
+      text,
+    };
+
+    await sendEmail(mailOptions);
+  }
+
+  res.status(201).json({
+    success: true,
+    message:
+      "User registered successfully. Please check your email to verify your account.",
+  });
+});
 
 const getAllUserAdmin = asyncErrorWrapper(async (req, res, next) => {
   const users = await User.find({ role: "user" }).select(
@@ -190,11 +248,38 @@ const statusUpdate = asyncErrorWrapper(async (req, res, next) => {
   }
 });
 
+const companyRegister = asyncErrorWrapper(async (req, res, next) => {
+  const { name, location, contact } = req.body;
+
+  const existingCompany = await CompanySc.findOne({ name });
+  if (existingCompany) {
+    return next(
+      new CustumError(
+        "This Company Name is already in use. Please try another Company.",
+        400
+      )
+    );
+  }
+
+  const Company = await CompanySc.create({
+    name,
+    location,
+    contact,
+  });
+
+  res.status(201).json({
+    success: true,
+    message: "Company registered successfully.",
+  });
+});
+
 module.exports = {
+  register,
   getAllUserAdmin,
   deleteUserAdmin,
   toggleBlockUser,
   announcement,
   getAllLeave,
   statusUpdate,
+  companyRegister,
 };
