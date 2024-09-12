@@ -1,6 +1,7 @@
 const mongoose = require("mongoose");
+const Schema = mongoose.Schema;
 
-const DailyWorkRecordSchema = new mongoose.Schema({
+const DailyWorkRecordSchema = new Schema({
   personnel_id: {
     type: mongoose.Schema.Types.ObjectId,
     ref: "User", // User şemasına referans
@@ -21,7 +22,17 @@ const DailyWorkRecordSchema = new mongoose.Schema({
   },
   check_out_time: {
     type: String,
-    required: true,
+    required: false, // Gün sonunda girilecek, başlangıçta gerekli değil
+  },
+  work_hours: {
+    start_time: {
+      type: String,
+      required: true,
+    },
+    end_time: {
+      type: String,
+      required: false, // Gün sonunda girilecek, başlangıçta gerekli değil
+    },
   },
   notes: {
     type: String,
