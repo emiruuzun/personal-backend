@@ -261,7 +261,7 @@ const companyRegister = asyncErrorWrapper(async (req, res, next) => {
     );
   }
 
-  const Company = await CompanySc.create({
+  await CompanySc.create({
     name,
     location,
     contact,
@@ -273,6 +273,22 @@ const companyRegister = asyncErrorWrapper(async (req, res, next) => {
   });
 });
 
+const companyGetAll = asyncErrorWrapper(async (req, res, next) => {
+  // Tüm firmaları veritabanından çek
+  const companies = await CompanySc.find();
+
+  // Eğer firmalar varsa başarı mesajı ve firma listesi dön
+  if (companies.length > 0) {
+    return res.status(200).json({
+      success: true,
+      data: companies,
+    });
+  } else {
+    // Eğer firmalar yoksa özel bir hata fırlat
+    return next(new CustumError("Hiçbir firma bulunamadı.", 404));
+  }
+});
+
 module.exports = {
   register,
   getAllUserAdmin,
@@ -282,4 +298,5 @@ module.exports = {
   getAllLeave,
   statusUpdate,
   companyRegister,
+  companyGetAll,
 };

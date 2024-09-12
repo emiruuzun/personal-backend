@@ -12,6 +12,7 @@ const {
   statusUpdate,
   register,
   companyRegister,
+  companyGetAll,
 } = require("../controller/admin");
 
 const router = express.Router();
@@ -25,5 +26,6 @@ router.post("/announcement", announcement);
 router.get("/leave/getAllleave", getAllLeave);
 router.post("/leave/status-update", statusUpdate);
 router.post("/company-register", companyRegister);
+router.get("/company-gelAll", companyGetAll);
 
 module.exports = router;
