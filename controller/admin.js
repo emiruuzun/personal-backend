@@ -11,7 +11,6 @@ const asyncErrorWrapper = require("express-async-handler");
 const register = asyncErrorWrapper(async (req, res, next) => {
   const { name, email, password, position, tcNo, contact, status, role } =
     req.body;
-  console.log(role);
   const existingUser = await User.findOne({ email });
   if (existingUser) {
     return next(
