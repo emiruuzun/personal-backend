@@ -15,6 +15,7 @@ const {
   companyGetAll,
   addDailyWorkRecord,
   updateDailyWorkRecord,
+  getDailyWorkRecords,
 } = require("../controller/admin");
 
 const router = express.Router();
@@ -31,5 +32,6 @@ router.post("/company-register", companyRegister);
 router.get("/company-gelAll", companyGetAll);
 router.post("/daily-work-record/add", addDailyWorkRecord);
 router.post("/daily-work-record/update/:id", updateDailyWorkRecord);
+router.get("/daily-work-records", getDailyWorkRecords);
 
 module.exports = router;

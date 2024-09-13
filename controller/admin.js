@@ -385,6 +385,49 @@ const updateDailyWorkRecord = asyncErrorWrapper(async (req, res, next) => {
     data: record,
   });
 });
+const getDailyWorkRecords = asyncErrorWrapper(async (req, res, next) => {
+  const { date } = req.query;
+
+  if (!date) {
+    return next(new CustumError("Date parameter is required.", 400));
+  }
+
+  // Tarih aralığını belirleyin
+  const startOfDay = new Date(date);
+  startOfDay.setHours(0, 0, 0, 0); // Günün başlangıcı
+  const endOfDay = new Date(date);
+  endOfDay.setHours(23, 59, 59, 999); // Günün sonu
+
+  try {
+    // O tarihe ait atanmış personelleri ve atanmamış personelleri çek
+    const assignedRecords = await DailyWorkRecord.find({
+      date: { $gte: startOfDay, $lte: endOfDay }, // Tarih aralığına göre sorgula
+      isAssigned: true,
+    }).populate("personnel_id", "name");
+
+    const unassignedRecords = await DailyWorkRecord.find({
+      date: { $gte: startOfDay, $lte: endOfDay }, // Tarih aralığına göre sorgula
+      isAssigned: false,
+    }).populate("personnel_id", "name");
+
+    res.status(200).json({
+      success: true,
+      data: {
+        assigned: assignedRecords,
+        unassigned: unassignedRecords,
+      },
+    });
+  } catch (error) {
+    console.error("Veritabanı hatası:", error);
+    return next(
+      new CustumError(
+        "An error occurred while fetching daily work records.",
+        500
+      )
+    );
+  }
+});
+
 module.exports = {
   register,
   getAllUserAdmin,
@@ -397,4 +440,5 @@ module.exports = {
   companyGetAll,
   addDailyWorkRecord,
   updateDailyWorkRecord,
+  getDailyWorkRecords,
 };
