@@ -427,6 +427,23 @@ const getDailyWorkRecords = asyncErrorWrapper(async (req, res, next) => {
     );
   }
 });
+const deleteDailyWorkRecord = asyncErrorWrapper(async (req, res, next) => {
+  const { id } = req.params;
+
+  // Silinecek kayıt var mı kontrol et
+  const record = await DailyWorkRecord.findById(id);
+  if (!record) {
+    return next(new CustumError("Günlük iş kaydı bulunamadı.", 404));
+  }
+
+  // Kaydı sil
+  await DailyWorkRecord.findByIdAndDelete(id);
+
+  res.status(200).json({
+    success: true,
+    message: "Günlük iş kaydı başarıyla silindi.",
+  });
+});
 
 module.exports = {
   register,
@@ -441,4 +458,5 @@ module.exports = {
   addDailyWorkRecord,
   updateDailyWorkRecord,
   getDailyWorkRecords,
+  deleteDailyWorkRecord,
 };
