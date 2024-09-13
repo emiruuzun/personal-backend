@@ -13,6 +13,8 @@ const {
   register,
   companyRegister,
   companyGetAll,
+  addDailyWorkRecord,
+  updateDailyWorkRecord,
 } = require("../controller/admin");
 
 const router = express.Router();
@@ -27,5 +29,7 @@ router.get("/leave/getAllleave", getAllLeave);
 router.post("/leave/status-update", statusUpdate);
 router.post("/company-register", companyRegister);
 router.get("/company-gelAll", companyGetAll);
+router.post("/daily-work-record/add", addDailyWorkRecord);
+router.post("/daily-work-record/update/:id", updateDailyWorkRecord);
 
 module.exports = router;

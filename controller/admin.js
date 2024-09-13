@@ -1,6 +1,7 @@
 const onlineUsers = require("../util/onlineUsers");
 const CustumError = require("../helpers/error/CustumError");
 const User = require("../models/User");
+const DailyWorkRecord = require("../models/DailyWorkRecordSchema ");
 const Leave = require("../models/LeaveRequest");
 const sendEmail = require("../helpers/libraries/sendEmail");
 const generateVerificationToken = require("../util/emailVefiyToken");
@@ -287,7 +288,103 @@ const companyGetAll = asyncErrorWrapper(async (req, res, next) => {
     return next(new CustumError("Hiçbir firma bulunamadı.", 404));
   }
 });
+const addDailyWorkRecord = asyncErrorWrapper(async (req, res, next) => {
+  const {
+    personnel_id,
+    company_id,
+    date,
+    job_start_time,
+    job_end_time,
+    overtime_hours,
+    notes,
+  } = req.body;
 
+  // isAssigned alanını belirleme
+  let isAssigned = false;
+  if (company_id) {
+    isAssigned = true;
+  }
+
+  // Gerekli alanların kontrolü
+  if (!personnel_id || !date) {
+    return next(new CustumError("Personel ID ve Tarih zorunludur.", 400));
+  }
+
+  if (isAssigned) {
+    if (!job_start_time) {
+      return next(
+        new CustumError(
+          "İş ataması yapılan personel için İş Başlangıç Saati zorunludur.",
+          400
+        )
+      );
+    }
+  }
+
+  // Yeni günlük iş kaydı oluşturma
+  const newRecord = await DailyWorkRecord.create({
+    personnel_id,
+    company_id,
+    date,
+    isAssigned,
+    job_start_time,
+    job_end_time,
+    overtime_hours,
+    notes,
+  });
+
+  res.status(201).json({
+    success: true,
+    message: "Günlük iş kaydı başarıyla oluşturuldu.",
+    data: newRecord,
+  });
+});
+const updateDailyWorkRecord = asyncErrorWrapper(async (req, res, next) => {
+  const { id } = req.params; // Güncelleme yapılacak kaydın ID'si
+  const { company_id, job_start_time, job_end_time, overtime_hours, notes } =
+    req.body;
+
+  // Kayıt var mı kontrol et
+  const record = await DailyWorkRecord.findById(id);
+  if (!record) {
+    return next(new CustumError("Günlük iş kaydı bulunamadı.", 404));
+  }
+
+  // isAssigned alanını güncelleme
+  let isAssigned = record.isAssigned;
+  if (company_id !== undefined) {
+    isAssigned = !!company_id; // company_id varsa true, yoksa false
+  }
+
+  // Alanları güncelle
+  record.company_id = company_id !== undefined ? company_id : record.company_id;
+  record.isAssigned = isAssigned;
+  record.job_start_time =
+    job_start_time !== undefined ? job_start_time : record.job_start_time;
+  record.job_end_time =
+    job_end_time !== undefined ? job_end_time : record.job_end_time;
+  record.overtime_hours =
+    overtime_hours !== undefined ? overtime_hours : record.overtime_hours;
+  record.notes = notes !== undefined ? notes : record.notes;
+
+  // Validasyon kontrolü
+  if (record.isAssigned && !record.job_start_time) {
+    return next(
+      new CustumError(
+        "İş ataması yapılan personel için İş Başlangıç Saati zorunludur.",
+        400
+      )
+    );
+  }
+
+  await record.save();
+
+  res.status(200).json({
+    success: true,
+    message: "Günlük iş kaydı başarıyla güncellendi.",
+    data: record,
+  });
+});
 module.exports = {
   register,
   getAllUserAdmin,
@@ -298,4 +395,6 @@ module.exports = {
   statusUpdate,
   companyRegister,
   companyGetAll,
+  addDailyWorkRecord,
+  updateDailyWorkRecord,
 };
