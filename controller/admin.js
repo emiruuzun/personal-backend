@@ -299,46 +299,86 @@ const addDailyWorkRecord = asyncErrorWrapper(async (req, res, next) => {
     notes,
   } = req.body;
 
-  // isAssigned alanını belirleme
-  let isAssigned = false;
-  if (company_id) {
-    isAssigned = true;
+  // Tarih kontrolü
+  if (!isValidDate(date)) {
+    return next(new CustumError("Geçersiz tarih formatı.", 400));
   }
+
+  // isAssigned alanını belirleme
+  const isAssigned = !!company_id;
 
   // Gerekli alanların kontrolü
   if (!personnel_id || !date) {
     return next(new CustumError("Personel ID ve Tarih zorunludur.", 400));
   }
 
-  if (isAssigned) {
-    if (!job_start_time) {
-      return next(
-        new CustumError(
-          "İş ataması yapılan personel için İş Başlangıç Saati zorunludur.",
-          400
-        )
-      );
-    }
+  if (isAssigned && !job_start_time) {
+    return next(
+      new CustumError(
+        "İş ataması yapılan personel için İş Başlangıç Saati zorunludur.",
+        400
+      )
+    );
   }
 
-  // Yeni günlük iş kaydı oluşturma
-  const newRecord = await DailyWorkRecord.create({
-    personnel_id,
-    company_id,
-    date,
-    isAssigned,
-    job_start_time,
-    job_end_time,
-    overtime_hours,
-    notes,
-  });
+  // Aynı personel ve tarih için kayıt var mı kontrol et
+  const existingRecord = await DailyWorkRecord.findOne({ personnel_id, date });
+
+  let newRecord;
+
+  if (existingRecord) {
+    // Mevcut kaydı güncelle
+    existingRecord.company_id = company_id;
+    existingRecord.isAssigned = isAssigned;
+    existingRecord.job_start_time = job_start_time;
+    existingRecord.job_end_time = job_end_time;
+    existingRecord.overtime_hours = overtime_hours;
+    existingRecord.notes = notes;
+
+    newRecord = await existingRecord.save();
+  } else {
+    // Yeni kayıt oluştur
+    newRecord = await DailyWorkRecord.create({
+      personnel_id,
+      company_id,
+      date,
+      isAssigned,
+      job_start_time,
+      job_end_time,
+      overtime_hours,
+      notes,
+    });
+  }
+
+  // Aynı tarihteki diğer kayıtları güncelle
+  if (isAssigned) {
+    await DailyWorkRecord.updateMany(
+      {
+        personnel_id: personnel_id,
+        date: date,
+        _id: { $ne: newRecord._id },
+      },
+      {
+        $set: {
+          isAssigned: false,
+          company_id: null,
+        },
+      }
+    );
+  }
 
   res.status(201).json({
     success: true,
-    message: "Günlük iş kaydı başarıyla oluşturuldu.",
+    message: "Günlük iş kaydı başarıyla oluşturuldu veya güncellendi.",
     data: newRecord,
   });
 });
+
+// Yardımcı fonksiyon: Tarih geçerliliğini kontrol eder
+function isValidDate(dateString) {
+  const date = new Date(dateString);
+  return date instanceof Date && !isNaN(date);
+}
 const updateDailyWorkRecord = asyncErrorWrapper(async (req, res, next) => {
   const { id } = req.params; // Güncelleme yapılacak kaydın ID'si
   const { company_id, job_start_time, job_end_time, overtime_hours, notes } =
