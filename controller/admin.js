@@ -298,7 +298,11 @@ const addDailyWorkRecord = asyncErrorWrapper(async (req, res, next) => {
     overtime_hours,
     notes,
   } = req.body;
-
+  // Yardımcı fonksiyon: Tarih geçerliliğini kontrol eder
+  function isValidDate(dateString) {
+    const date = new Date(dateString);
+    return date instanceof Date && !isNaN(date);
+  }
   // Tarih kontrolü
   if (!isValidDate(date)) {
     return next(new CustumError("Geçersiz tarih formatı.", 400));
