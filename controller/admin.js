@@ -407,8 +407,15 @@ const updateDailyWorkRecord = asyncErrorWrapper(async (req, res, next) => {
     job_start_time !== undefined ? job_start_time : record.job_start_time;
   record.job_end_time =
     job_end_time !== undefined ? job_end_time : record.job_end_time;
-  record.overtime_hours =
-    overtime_hours !== undefined ? overtime_hours : record.overtime_hours;
+
+  // Overtime hours güncellenmesi
+  if (overtime_hours) {
+    record.overtime_hours.start_time =
+      overtime_hours.startTime || record.overtime_hours.start_time;
+    record.overtime_hours.end_time =
+      overtime_hours.endTime || record.overtime_hours.end_time;
+  }
+
   record.notes = notes !== undefined ? notes : record.notes;
 
   // Validasyon kontrolü
@@ -429,6 +436,7 @@ const updateDailyWorkRecord = asyncErrorWrapper(async (req, res, next) => {
     data: record,
   });
 });
+
 const getDailyWorkRecords = asyncErrorWrapper(async (req, res, next) => {
   const { date } = req.query;
 
