@@ -496,6 +496,55 @@ const deleteDailyWorkRecord = asyncErrorWrapper(async (req, res, next) => {
     message: "Günlük iş kaydı başarıyla silindi.",
   });
 });
+const getWorkRecordsByDateRange = asyncErrorWrapper(async (req, res, next) => {
+  const { startDate, endDate } = req.query;
+
+  if (!startDate || !endDate) {
+    return next(
+      new CustumError(
+        "Both startDate and endDate parameters are required.",
+        400
+      )
+    );
+  }
+
+  // Tarih aralığını belirleyin
+  const startOfDay = new Date(startDate);
+  startOfDay.setHours(0, 0, 0, 0); // Başlangıç günün ilk saati
+  const endOfDay = new Date(endDate);
+  endOfDay.setHours(23, 59, 59, 999); // Bitiş günün son saati
+
+  try {
+    // Verilen tarih aralığına göre atanmış ve atanmamış iş kayıtlarını çek
+    const assignedRecords = await DailyWorkRecord.find({
+      date: { $gte: startOfDay, $lte: endOfDay }, // Tarih aralığına göre sorgula
+      isAssigned: true,
+    })
+      .populate("personnel_id", "name")
+      .populate("company_id", "name"); // Company bilgisi için populate ekleyin
+
+    const unassignedRecords = await DailyWorkRecord.find({
+      date: { $gte: startOfDay, $lte: endOfDay }, // Tarih aralığına göre sorgula
+      isAssigned: false,
+    }).populate("personnel_id", "name");
+
+    res.status(200).json({
+      success: true,
+      data: {
+        assigned: assignedRecords,
+        unassigned: unassignedRecords,
+      },
+    });
+  } catch (error) {
+    console.error("Veritabanı hatası:", error); // Daha detaylı hata loglayın
+    return next(
+      new CustumError(
+        "An error occurred while fetching work records by date range.",
+        500
+      )
+    );
+  }
+});
 
 module.exports = {
   register,
@@ -511,4 +560,5 @@ module.exports = {
   updateDailyWorkRecord,
   getDailyWorkRecords,
   deleteDailyWorkRecord,
+  getWorkRecordsByDateRange,
 };

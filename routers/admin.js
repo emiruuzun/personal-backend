@@ -17,6 +17,7 @@ const {
   updateDailyWorkRecord,
   getDailyWorkRecords,
   deleteDailyWorkRecord,
+  getWorkRecordsByDateRange,
 } = require("../controller/admin");
 
 const router = express.Router();
@@ -35,5 +36,6 @@ router.post("/daily-work-record/add", addDailyWorkRecord);
 router.post("/daily-work-record/update/:id", updateDailyWorkRecord);
 router.get("/daily-work-records", getDailyWorkRecords);
 router.get("/daily-work-record/delete/:id", deleteDailyWorkRecord);
+router.get("/work-records-by-date-range", getWorkRecordsByDateRange);
 
 module.exports = router;

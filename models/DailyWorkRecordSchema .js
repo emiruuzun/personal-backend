@@ -9,7 +9,7 @@ const DailyWorkRecordSchema = new Schema({
   },
   company_id: {
     type: mongoose.Schema.Types.ObjectId,
-    ref: "Company", // Company şemasına referans
+    ref: "CompanySc", // Company şemasına referans
     required: false, // İş atanmayan personel için boş bırakılabilir
   },
   date: {

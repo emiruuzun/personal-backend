@@ -13,7 +13,7 @@ const DailyReportSchema = new mongoose.Schema({
       },
       company_id: {
         type: mongoose.Schema.Types.ObjectId,
-        ref: "Company", // Company şemasına referans
+        ref: "CompanySc", // Company şemasına referans
       },
     },
   ],
