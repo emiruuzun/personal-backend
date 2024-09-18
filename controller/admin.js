@@ -225,6 +225,11 @@ const statusUpdate = asyncErrorWrapper(async (req, res, next) => {
       { new: true, runValidators: true } // `new: true` yeni güncellenmiş dökümanı döndürür
     );
 
+    // Eğer izin talebi onaylandıysa, kullanıcı statüsünü "İzinli" olarak güncelle
+    if (status === "Onaylandı") {
+      await User.findByIdAndUpdate(leave.userId, { status: "İzinli" });
+    }
+
     const userId = leave.userId.toString(); // leave içindeki
     const ownerSocketId = onlineUsers[userId]; // Kullanıcının socket ID'si
     if (ownerSocketId) {
@@ -235,6 +240,7 @@ const statusUpdate = asyncErrorWrapper(async (req, res, next) => {
     } else {
       console.log(`User ${userId} is not connected.`);
     }
+
     res.status(200).json({
       success: true,
       message: "İzin durumu başarıyla güncellendi.",
@@ -378,11 +384,6 @@ const addDailyWorkRecord = asyncErrorWrapper(async (req, res, next) => {
   });
 });
 
-// Yardımcı fonksiyon: Tarih geçerliliğini kontrol eder
-function isValidDate(dateString) {
-  const date = new Date(dateString);
-  return date instanceof Date && !isNaN(date);
-}
 const updateDailyWorkRecord = asyncErrorWrapper(async (req, res, next) => {
   const { id } = req.params; // Güncelleme yapılacak kaydın ID'si
   const { company_id, job_start_time, job_end_time, overtime_hours, notes } =
