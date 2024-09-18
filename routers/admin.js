@@ -18,6 +18,7 @@ const {
   getDailyWorkRecords,
   deleteDailyWorkRecord,
   getWorkRecordsByDateRange,
+  getLastLeaveByUserId,
 } = require("../controller/admin");
 
 const router = express.Router();
@@ -37,5 +38,6 @@ router.post("/daily-work-record/update/:id", updateDailyWorkRecord);
 router.get("/daily-work-records", getDailyWorkRecords);
 router.get("/daily-work-record/delete/:id", deleteDailyWorkRecord);
 router.get("/work-records-by-date-range", getWorkRecordsByDateRange);
+router.post("/leaves/last", getLastLeaveByUserId);
 
 module.exports = router;

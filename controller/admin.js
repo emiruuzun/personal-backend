@@ -170,6 +170,35 @@ const getAllLeave = asyncErrorWrapper(async (req, res, next) => {
     );
   }
 });
+const getLastLeaveByUserId = asyncErrorWrapper(async (req, res, next) => {
+  const { userId } = req.body; // API'den gelen kullanıcı id'si
+
+  try {
+    // Belirtilen userId'ye ait tüm izinleri başlangıç tarihine göre sıralayıp son eklenen kaydı getir
+    const lastLeave = await Leave.findOne({ userId })
+      .sort({ createdAt: -1 }) // En son ekleneni bulmak için tarihe göre tersten sırala
+      .select("startDate endDate"); // Sadece başlangıç ve bitiş tarihlerini seç
+
+    if (!lastLeave) {
+      return next(
+        new CustumError("No leave requests found for this user", 404)
+      );
+    }
+
+    res.status(200).json({
+      success: true,
+      data: {
+        startDate: lastLeave.startDate,
+        endDate: lastLeave.endDate,
+      },
+    });
+  } catch (error) {
+    console.error("Error fetching leave for user:", error);
+    return next(
+      new CustumError("An error occurred while fetching leave request", 500)
+    );
+  }
+});
 
 const statusUpdate = asyncErrorWrapper(async (req, res, next) => {
   const { leaveId, status, rejectionReason } = req.body;
@@ -562,4 +591,5 @@ module.exports = {
   getDailyWorkRecords,
   deleteDailyWorkRecord,
   getWorkRecordsByDateRange,
+  getLastLeaveByUserId,
 };
