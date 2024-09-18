@@ -119,6 +119,10 @@ const getUser = asyncErrorWrapper(async (req, res, next) => {
       profile_image: user.profile_image,
       layer: user.layer,
       role: user.role,
+      position: user.position,
+      tcNo: user.tcNo,
+      contact: user.contact,
+      status: user.status,
     },
   });
 });
