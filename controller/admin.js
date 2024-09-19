@@ -10,8 +10,17 @@ const CompanySc = require("../models/CompanySchema ");
 const asyncErrorWrapper = require("express-async-handler");
 
 const register = asyncErrorWrapper(async (req, res, next) => {
-  const { name, email, password, position, tcNo, contact, status, role } =
-    req.body;
+  const {
+    name,
+    email,
+    password,
+    position,
+    tcNo,
+    contact,
+    status,
+    role,
+    group,
+  } = req.body;
   const existingUser = await User.findOne({ email });
   if (existingUser) {
     return next(
@@ -36,6 +45,7 @@ const register = asyncErrorWrapper(async (req, res, next) => {
     tcNo,
     contact,
     status,
+    group,
     verificationToken,
     isVerify: process.env.NODE_ENV === "development",
   });

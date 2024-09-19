@@ -68,6 +68,11 @@ const UserSchema = new Schema({
     type: Boolean,
     default: false,
   },
+  group: {
+    type: String,
+    required: [true, "Please provide a group"],
+    enum: ["Mekanik", "Boru", "Elektrik", "Aksaray", "Kapı", "Ofis"],
+  },
 });
 
 UserSchema.methods.generateJwtFromUser = function () {
