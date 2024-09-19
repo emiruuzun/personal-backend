@@ -585,6 +585,22 @@ const getWorkRecordsByDateRange = asyncErrorWrapper(async (req, res, next) => {
     );
   }
 });
+const deleteCompany = asyncErrorWrapper(async (req, res, next) => {
+  const { id } = req.params;
+
+  const companySc = await CompanySc.findById(id);
+
+  if (!companySc) {
+    return next(new CustumError("There is no such user with that id", 404));
+  }
+
+  await CompanySc.findByIdAndDelete(id);
+
+  res.status(200).json({
+    success: true,
+    message: "Company and their answers deleted successfully",
+  });
+});
 
 module.exports = {
   register,
@@ -602,4 +618,5 @@ module.exports = {
   deleteDailyWorkRecord,
   getWorkRecordsByDateRange,
   getLastLeaveByUserId,
+  deleteCompany,
 };
