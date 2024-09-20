@@ -559,7 +559,14 @@ const getWorkRecordsByDateRange = asyncErrorWrapper(async (req, res, next) => {
       isAssigned: true,
     })
       .populate("personnel_id", "name")
-      .populate("company_id", "name"); // Company bilgisi için populate ekleyin
+      .populate({
+        path: "company_id",
+        select: "name jobs", // Hem şirket ismini hem de iş listesini seç
+        populate: {
+          path: "jobs", // 'jobs' alanı içerisinde referans verilen 'Job' koleksiyonunu populate et
+          select: "jobName", // Sadece işin ismini al
+        },
+      });
 
     const unassignedRecords = await DailyWorkRecord.find({
       date: { $gte: startOfDay, $lte: endOfDay }, // Tarih aralığına göre sorgula
