@@ -21,6 +21,7 @@ const {
   getLastLeaveByUserId,
   deleteCompany,
   addJobToCompany,
+  getJobsByCompany,
 } = require("../controller/admin");
 
 const router = express.Router();
@@ -43,5 +44,6 @@ router.get("/work-records-by-date-range", getWorkRecordsByDateRange);
 router.post("/leaves/last", getLastLeaveByUserId);
 router.get("/company/delete/:id", deleteCompany);
 router.post("/company/:companyId/jobs", addJobToCompany);
+router.get("/company/:companyId/jobsAd", getJobsByCompany);
 
 module.exports = router;

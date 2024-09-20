@@ -14,7 +14,7 @@ const DailyWorkRecordSchema = new Schema({
   },
   job_id: {
     type: mongoose.Schema.Types.ObjectId,
-    ref: "JobSchema", // Job şemasına referans (CompanySc altında bulunan işler)
+    ref: "CompanySc.jobs", // Job şemasına referans (CompanySc altında bulunan işler)
     required: false, // İşe atanmayan personel için boş bırakılabilir
   },
   date: {

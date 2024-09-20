@@ -337,26 +337,25 @@ const addDailyWorkRecord = asyncErrorWrapper(async (req, res, next) => {
   const {
     personnel_id,
     company_id,
+    job_id, // İş ID'si
     date,
     job_start_time,
     job_end_time,
     overtime_hours,
     notes,
   } = req.body;
-  // Yardımcı fonksiyon: Tarih geçerliliğini kontrol eder
+
   function isValidDate(dateString) {
     const date = new Date(dateString);
     return date instanceof Date && !isNaN(date);
   }
-  // Tarih kontrolü
+
   if (!isValidDate(date)) {
     return next(new CustumError("Geçersiz tarih formatı.", 400));
   }
 
-  // isAssigned alanını belirleme
-  const isAssigned = !!company_id;
+  const isAssigned = !!company_id && !!job_id;
 
-  // Gerekli alanların kontrolü
   if (!personnel_id || !date) {
     return next(new CustumError("Personel ID ve Tarih zorunludur.", 400));
   }
@@ -370,14 +369,13 @@ const addDailyWorkRecord = asyncErrorWrapper(async (req, res, next) => {
     );
   }
 
-  // Aynı personel ve tarih için kayıt var mı kontrol et
   const existingRecord = await DailyWorkRecord.findOne({ personnel_id, date });
 
   let newRecord;
 
   if (existingRecord) {
-    // Mevcut kaydı güncelle
     existingRecord.company_id = company_id;
+    existingRecord.job_id = job_id;
     existingRecord.isAssigned = isAssigned;
     existingRecord.job_start_time = job_start_time;
     existingRecord.job_end_time = job_end_time;
@@ -386,10 +384,10 @@ const addDailyWorkRecord = asyncErrorWrapper(async (req, res, next) => {
 
     newRecord = await existingRecord.save();
   } else {
-    // Yeni kayıt oluştur
     newRecord = await DailyWorkRecord.create({
       personnel_id,
       company_id,
+      job_id,
       date,
       isAssigned,
       job_start_time,
@@ -399,7 +397,6 @@ const addDailyWorkRecord = asyncErrorWrapper(async (req, res, next) => {
     });
   }
 
-  // Aynı tarihteki diğer kayıtları güncelle
   if (isAssigned) {
     await DailyWorkRecord.updateMany(
       {
@@ -411,6 +408,7 @@ const addDailyWorkRecord = asyncErrorWrapper(async (req, res, next) => {
         $set: {
           isAssigned: false,
           company_id: null,
+          job_id: null, // İş ataması sıfırlanıyor
         },
       }
     );
@@ -634,6 +632,22 @@ const addJobToCompany = asyncErrorWrapper(async (req, res, next) => {
       .json({ success: false, message: "İş eklenirken bir hata oluştu." });
   }
 });
+const getJobsByCompany = asyncErrorWrapper(async (req, res, next) => {
+  const { companyId } = req.params;
+
+  const company = await CompanySc.findById(companyId);
+
+  if (!company) {
+    return res
+      .status(404)
+      .json({ success: false, message: "Firma bulunamadı." });
+  }
+
+  res.status(200).json({
+    success: true,
+    data: company.jobs, // Firmanın işlerini döndür
+  });
+});
 
 module.exports = {
   register,
@@ -653,4 +667,5 @@ module.exports = {
   getLastLeaveByUserId,
   deleteCompany,
   addJobToCompany,
+  getJobsByCompany,
 };
