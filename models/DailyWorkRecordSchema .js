@@ -12,6 +12,11 @@ const DailyWorkRecordSchema = new Schema({
     ref: "CompanySc", // Company şemasına referans
     required: false, // İş atanmayan personel için boş bırakılabilir
   },
+  job_id: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: "JobSchema", // Job şemasına referans (CompanySc altında bulunan işler)
+    required: false, // İşe atanmayan personel için boş bırakılabilir
+  },
   date: {
     type: Date,
     required: true,
@@ -45,10 +50,10 @@ const DailyWorkRecordSchema = new Schema({
   },
 });
 
-// isAssigned alanını company_id'ye bağlı olarak otomatik ayarlama
+// isAssigned alanını company_id veya job_id'ye bağlı olarak otomatik ayarlama
 DailyWorkRecordSchema.pre("save", function (next) {
-  // Eğer company_id varsa ve boş değilse, isAssigned true olmalı
-  if (this.company_id) {
+  // Eğer company_id veya job_id varsa ve boş değilse, isAssigned true olmalı
+  if (this.company_id || this.job_id) {
     this.isAssigned = true;
   } else {
     this.isAssigned = false;

@@ -602,6 +602,39 @@ const deleteCompany = asyncErrorWrapper(async (req, res, next) => {
   });
 });
 
+const addJobToCompany = asyncErrorWrapper(async (req, res, next) => {
+  try {
+    const { companyId } = req.params;
+    const { jobName, jobDescription } = req.body; // Değerlerin doğru alındığından emin olun
+
+    if (!jobName) {
+      return res
+        .status(400)
+        .json({ success: false, message: "İş adı gerekli." });
+    }
+
+    const company = await CompanySc.findById(companyId);
+
+    if (!company) {
+      return res
+        .status(404)
+        .json({ success: false, message: "Firma bulunamadı." });
+    }
+
+    company.jobs.push({ jobName, jobDescription }); // Yeni iş verilerini ekleyin
+    await company.save();
+
+    res
+      .status(200)
+      .json({ success: true, message: "İş başarıyla eklendi.", data: company });
+  } catch (error) {
+    console.error("İş ekleme hatası:", error);
+    res
+      .status(500)
+      .json({ success: false, message: "İş eklenirken bir hata oluştu." });
+  }
+});
+
 module.exports = {
   register,
   getAllUserAdmin,
@@ -619,4 +652,5 @@ module.exports = {
   getWorkRecordsByDateRange,
   getLastLeaveByUserId,
   deleteCompany,
+  addJobToCompany,
 };
