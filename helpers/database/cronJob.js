@@ -1,20 +1,23 @@
 const { CronJob } = require("cron");
 const User = require("../../models/User");
 
-const startDbDeleteJob = () => {
+const startStatusUpdateJob = () => {
   const job = new CronJob("0 0 * * *", async () => {
+    // Her gece 00:00'da çalışacak
     try {
-      const date24HoursAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
+      const today = new Date().toISOString().split("T")[0];
 
-      const result = await User.deleteMany({
-        isVerify: false,
-        creatAt: { $lt: date24HoursAgo },
-      });
+      const result = await User.updateMany(
+        { leaveEndDate: { $lt: today }, status: "İzinli" },
+        { $set: { status: "Aktif" } }
+      );
 
-      if (result.deletedCount > 0) {
-        console.log("Görev başarılı. Doğrulanmamış kullanıcılar silindi.");
+      if (result.nModified > 0) {
+        console.log(
+          `${result.nModified} kullanıcının statüsü "Aktif" olarak güncellendi.`
+        );
       } else {
-        console.log("Şuan doğrulanmamış kullanıcı yok.");
+        console.log("Güncellenmesi gereken kullanıcı bulunamadı.");
       }
     } catch (error) {
       console.error("Bir hata oluştu:", error);
@@ -24,16 +27,11 @@ const startDbDeleteJob = () => {
 };
 
 const startAllJobs = () => {
-  startDbDeleteJob();
-};
-
-const stopAllJobs = () => {
-  startDbDeleteJob();
+  startStatusUpdateJob();
 };
 
 module.exports = {
   startAllJobs,
-  stopAllJobs,
 };
 
 // Altta ki kodda 30 saniyede bir
