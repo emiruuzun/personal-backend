@@ -22,6 +22,7 @@ const {
   deleteCompany,
   addJobToCompany,
   getJobsByCompany,
+  completeJob,
 } = require("../controller/admin");
 
 const router = express.Router();
@@ -45,5 +46,6 @@ router.post("/leaves/last", getLastLeaveByUserId);
 router.get("/company/delete/:id", deleteCompany);
 router.post("/company/:companyId/jobs", addJobToCompany);
 router.get("/company/:companyId/jobsAd", getJobsByCompany);
+router.get("/company/:companyId/:jobId", completeJob);
 
 module.exports = router;

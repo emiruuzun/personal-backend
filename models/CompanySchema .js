@@ -10,6 +10,7 @@ const JobSchema = new Schema({
     type: String,
     required: false,
   },
+  status: { type: String, default: "active" },
 });
 const CompanySchema = new Schema({
   name: {

@@ -656,6 +656,31 @@ const getJobsByCompany = asyncErrorWrapper(async (req, res, next) => {
   });
 });
 
+const completeJob = asyncErrorWrapper(async (req, res, next) => {
+  const { companyId, jobId } = req.params;
+
+  const company = await CompanySc.findById(companyId);
+
+  if (!company) {
+    return next(new CustumError("There is no such company with that id", 400));
+  }
+
+  const job = company.jobs.id(jobId);
+
+  if (!job) {
+    return next(new CustumError("There is no such job with that id", 400));
+  }
+
+  job.status = "completed";
+  await company.save();
+
+  res.status(200).json({
+    success: true,
+    message: "Job has been completed successfully",
+    data: job,
+  });
+});
+
 module.exports = {
   register,
   getAllUserAdmin,
@@ -675,4 +700,5 @@ module.exports = {
   deleteCompany,
   addJobToCompany,
   getJobsByCompany,
+  completeJob,
 };
