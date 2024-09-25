@@ -221,7 +221,7 @@ const statusUpdate = asyncErrorWrapper(async (req, res, next) => {
     "Onaylanmış (Yaklaşan)",
   ];
   if (!validStatuses.includes(status)) {
-    return next(new CustomError("Geçersiz durum değeri.", 400));
+    return next(new CustumError("Geçersiz durum değeri.", 400));
   }
 
   try {
@@ -230,7 +230,7 @@ const statusUpdate = asyncErrorWrapper(async (req, res, next) => {
 
     // Eğer izin talebi bulunamazsa hata fırlat
     if (!leave) {
-      return next(new CustomError("İzin talebi bulunamadı.", 404));
+      return next(new CustumError("İzin talebi bulunamadı.", 404));
     }
 
     // Eğer izin talebi zaten "Onaylandı" veya "Reddedildi" ise güncelleme yapılmasın
@@ -240,7 +240,7 @@ const statusUpdate = asyncErrorWrapper(async (req, res, next) => {
       )
     ) {
       return next(
-        new CustomError(
+        new CustumError(
           "İzin talebi zaten sonuçlandırılmış, tekrar güncellenemez.",
           400
         )
@@ -252,7 +252,7 @@ const statusUpdate = asyncErrorWrapper(async (req, res, next) => {
       status === "Reddedildi" &&
       (!rejectionReason || rejectionReason.trim() === "")
     ) {
-      return next(new CustomError("Reddetme nedeni belirtilmelidir.", 400));
+      return next(new CustumError("Reddetme nedeni belirtilmelidir.", 400));
     }
 
     // Güncelleme verisi hazırlanıyor

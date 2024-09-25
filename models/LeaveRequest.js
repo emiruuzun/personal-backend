@@ -53,7 +53,13 @@ const LeaveSchema = new Schema({
   },
   status: {
     type: String,
-    enum: ["Onaylandı", "Reddedildi", "Beklemede", "Onaylanmış (Yaklaşan)"], // Durum için enum kontrolü
+    enum: [
+      "Onaylandı",
+      "Reddedildi",
+      "Beklemede",
+      "Onaylanmış (Yaklaşan)",
+      "Geçmiş İzin",
+    ], // Durum için enum kontrolü
     default: "Beklemede",
   },
   rejectionReason: {
