@@ -214,9 +214,14 @@ const statusUpdate = asyncErrorWrapper(async (req, res, next) => {
   const { leaveId, status, rejectionReason } = req.body;
 
   // Geçerli bir durum kontrolü
-  const validStatuses = ["Onaylandı", "Reddedildi", "Beklemede"];
+  const validStatuses = [
+    "Onaylandı",
+    "Reddedildi",
+    "Beklemede",
+    "Onaylanmış (Yaklaşan)",
+  ];
   if (!validStatuses.includes(status)) {
-    return next(new CustumError("Geçersiz durum değeri.", 400));
+    return next(new CustomError("Geçersiz durum değeri.", 400));
   }
 
   try {
@@ -225,13 +230,17 @@ const statusUpdate = asyncErrorWrapper(async (req, res, next) => {
 
     // Eğer izin talebi bulunamazsa hata fırlat
     if (!leave) {
-      return next(new CustumError("İzin talebi bulunamadı.", 404));
+      return next(new CustomError("İzin talebi bulunamadı.", 404));
     }
 
     // Eğer izin talebi zaten "Onaylandı" veya "Reddedildi" ise güncelleme yapılmasın
-    if (leave.status === "Onaylandı" || leave.status === "Reddedildi") {
+    if (
+      ["Onaylandı", "Reddedildi", "Onaylanmış (Yaklaşan)"].includes(
+        leave.status
+      )
+    ) {
       return next(
-        new CustumError(
+        new CustomError(
           "İzin talebi zaten sonuçlandırılmış, tekrar güncellenemez.",
           400
         )
@@ -243,11 +252,11 @@ const statusUpdate = asyncErrorWrapper(async (req, res, next) => {
       status === "Reddedildi" &&
       (!rejectionReason || rejectionReason.trim() === "")
     ) {
-      return next(new CustumError("Reddetme nedeni belirtilmelidir.", 400));
+      return next(new CustomError("Reddetme nedeni belirtilmelidir.", 400));
     }
 
     // Güncelleme verisi hazırlanıyor
-    const updateData = { status };
+    let updateData = { status };
 
     // Eğer durum "Reddedildi" ise, rejectionReason da ekleniyor
     if (status === "Reddedildi") {
@@ -257,6 +266,23 @@ const statusUpdate = asyncErrorWrapper(async (req, res, next) => {
       updateData.rejectionReason = "";
     }
 
+    // Eğer izin talebi onaylandıysa, izin başlangıç tarihine göre statüleri güncelle
+    if (status === "Onaylandı") {
+      const today = new Date();
+      const startDate = new Date(leave.startDate);
+
+      if (startDate > today) {
+        // İzin başlangıç tarihi gelecekteyse, izin talebinin statüsünü "Onaylanmış (Yaklaşan)" yapın
+        updateData.status = "Onaylanmış (Yaklaşan)";
+      } else if (startDate.toDateString() === today.toDateString()) {
+        // İzin başlangıç tarihi bugüne eşitse, kullanıcının statüsünü "İzinli" yapın
+        await User.findByIdAndUpdate(leave.userId, { status: "İzinli" });
+      } else {
+        // Geçmiş tarihli izinler için izin talebinin statüsünü "Geçmiş İzin" yapabilirsiniz
+        updateData.status = "Geçmiş İzin";
+      }
+    }
+
     // İzin talebini ID ile bul ve durumunu güncelle
     const updatedLeave = await Leave.findByIdAndUpdate(
       leaveId,
@@ -264,16 +290,11 @@ const statusUpdate = asyncErrorWrapper(async (req, res, next) => {
       { new: true, runValidators: true } // `new: true` yeni güncellenmiş dökümanı döndürür
     );
 
-    // Eğer izin talebi onaylandıysa, kullanıcı statüsünü "İzinli" olarak güncelle
-    if (status === "Onaylandı") {
-      await User.findByIdAndUpdate(leave.userId, { status: "İzinli" });
-    }
-
     const userId = leave.userId.toString(); // leave içindeki
     const ownerSocketId = onlineUsers[userId]; // Kullanıcının socket ID'si
     if (ownerSocketId) {
       req.io.to(ownerSocketId).emit("leaveStatusUpdated", {
-        message: `İzin talebinizin durumu "${status}" olarak güncellendi.`,
+        message: `İzin talebinizin durumu "${updateData.status}" olarak güncellendi.`,
         leave: updatedLeave,
       });
     } else {
