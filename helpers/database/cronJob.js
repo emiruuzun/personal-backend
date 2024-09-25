@@ -24,9 +24,10 @@ const startStatusUpdateJob = () => {
           .limit(1);
 
         if (latestLeave) {
+          // Eğer izin "Onaylandı" ve bitiş tarihi bugünden küçük veya eşitse kullanıcı "Aktif" yapılır
           if (
             latestLeave.status === "Onaylandı" &&
-            latestLeave.endDate < today
+            latestLeave.endDate <= today
           ) {
             await updateUserStatus(user._id, "Aktif");
             await updateLeaveStatus(latestLeave._id, "Geçmiş İzin");
@@ -35,6 +36,7 @@ const startStatusUpdateJob = () => {
             );
           }
 
+          // Eğer izin "Onaylanmış (Yaklaşan)" ve başlangıç tarihi bugünden küçük veya eşitse kullanıcı "İzinli" yapılır
           if (
             latestLeave.status === "Onaylanmış (Yaklaşan)" &&
             latestLeave.startDate <= today
@@ -104,7 +106,7 @@ module.exports = {
 };
 
 // Notlar:
-// 1. startStatusUpdateJob: Bu cron job, her kullanıcı için en son izin talebini kontrol eder. Eğer izin "Onaylandı" ve bitiş tarihi geçmişse, kullanıcının statüsünü "Aktif" yapar. Eğer izin "Onaylanmış (Yaklaşan)" ve bugünkü tarihe eşitse, kullanıcının statüsünü "İzinli" yapar.
+// 1. startStatusUpdateJob: Bu cron job, her kullanıcı için en son izin talebini kontrol eder. Eğer izin "Onaylandı" ve bitiş tarihi bugünden küçük veya eşitse, kullanıcının statüsünü "Aktif" yapar. Eğer izin "Onaylanmış (Yaklaşan)" ve bugünkü tarihe eşitse, kullanıcının statüsünü "İzinli" yapar.
 // 2. startLeaveStatusUpdateJob: Bu cron job, her 10 saniyede bir "Onaylanmış (Yaklaşan)" statüsündeki izinleri kontrol eder ve bugünkü tarihe eşitse statüsünü "Onaylandı" olarak günceller.
 
 // Altta ki kodda 30 saniyede bir
