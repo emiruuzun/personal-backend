@@ -1,51 +1,27 @@
 const { CronJob } = require("cron");
 const User = require("../../models/User");
 const Leave = require("../../models/LeaveRequest");
+
 const updateUserStatus = async (userId, status) => {
   try {
-    const result = await User.findByIdAndUpdate(
-      userId,
-      { status },
-      { new: true }
-    );
-    if (result) {
-      console.log(
-        `Kullanıcı ${userId} statüsü "${status}" olarak güncellendi:`,
-        result
-      );
-    } else {
-      console.error(`Kullanıcı ${userId} güncellenemedi, null döndü.`);
-    }
-    return result;
+    return await User.findByIdAndUpdate(userId, { status }, { new: true });
   } catch (error) {
-    console.error(
+    throw new Error(
       `Kullanıcı statüsü güncellenirken hata oluştu: ${error.message}`
     );
-    throw error;
   }
 };
 
 const updateLeaveStatus = async (leaveId, status) => {
   try {
-    const result = await Leave.findByIdAndUpdate(
-      leaveId,
-      { status },
-      { new: true }
-    );
-    if (result) {
-      console.log(
-        `İzin ${leaveId} statüsü "${status}" olarak güncellendi:`,
-        result
-      );
-    } else {
-      console.error(`İzin ${leaveId} güncellenemedi, null döndü.`);
-    }
-    return result;
+    return await Leave.findByIdAndUpdate(leaveId, { status }, { new: true });
   } catch (error) {
-    console.error(`İzin statüsü güncellenirken hata oluştu: ${error.message}`);
-    throw error;
+    throw new Error(
+      `İzin statüsü güncellenirken hata oluştu: ${error.message}`
+    );
   }
 };
+
 const startStatusUpdateJob = () => {
   const job = new CronJob("*/10 * * * * *", async () => {
     try {
@@ -57,14 +33,13 @@ const startStatusUpdateJob = () => {
       for (let user of users) {
         const latestLeave = await Leave.find({
           userId: user._id,
-          status: { $in: ["Onaylandı", "Onaylanmış (Yaklaşan)", "Beklemede"] }
+          status: { $in: ["Onaylandı", "Onaylanmış (Yaklaşan)", "Beklemede"] },
         })
           .sort({ startDate: -1 })
           .limit(1);
 
         if (latestLeave && latestLeave.length > 0) {
           const leave = latestLeave[0];
-          console.log("Bulunan İzin:", leave);
 
           const leaveEndDate = new Date(
             Date.UTC(
@@ -74,42 +49,22 @@ const startStatusUpdateJob = () => {
             )
           );
 
-          console.error("leaveEndDate (Adjusted):", leaveEndDate);
-          console.error("today (Adjusted):", today);
-
           // Eğer izin "Onaylandı" ve bitiş tarihi bugüne eşitse veya bugünden küçükse kullanıcı "Aktif" yapılır
           if (leave.status === "Onaylandı" && leaveEndDate <= today) {
-            const userUpdateResult = await updateUserStatus(user._id, "Aktif");
-            const leaveUpdateResult = await updateLeaveStatus(leave._id, "Geçmiş İzin");
-
-            if (userUpdateResult && leaveUpdateResult) {
-              console.log(
-                `Kullanıcı ${user._id} için izin talebi "Geçmiş İzin" olarak güncellendi.`
-              );
-            } else {
-              console.error("Kullanıcı veya izin güncellemesinde bir sorun oluştu.");
-            }
+            await updateUserStatus(user._id, "Aktif");
+            await updateLeaveStatus(leave._id, "Geçmiş İzin");
           }
 
           // Eğer izin "Onaylanmış (Yaklaşan)" ve başlangıç tarihi bugüne eşitse kullanıcı "İzinli" yapılır
-          if (leave.status === "Onaylanmış (Yaklaşan)" && leave.startDate <= today) {
-            const userUpdateResult = await updateUserStatus(user._id, "İzinli");
-            const leaveUpdateResult = await updateLeaveStatus(leave._id, "Onaylandı");
-
-            if (userUpdateResult && leaveUpdateResult) {
-              console.log(
-                `Kullanıcı ${user._id} için izin talebi "Onaylandı" olarak güncellendi.`
-              );
-            } else {
-              console.error("Kullanıcı veya izin güncellemesinde bir sorun oluştu.");
-            }
+          if (
+            leave.status === "Onaylanmış (Yaklaşan)" &&
+            leave.startDate <= today
+          ) {
+            await updateUserStatus(user._id, "İzinli");
+            await updateLeaveStatus(leave._id, "Onaylandı");
           }
-        } else {
-          console.log(`User ID: ${user._id}, herhangi bir geçerli izin talebi bulunamadı.`);
         }
       }
-
-      console.log("Tüm kullanıcıların izin işlemleri tamamlandı.");
     } catch (error) {
       console.error("Bir hata oluştu:", error);
     }
@@ -140,12 +95,6 @@ const startLeaveStatusUpdateJob = () => {
           startingLeaves.map((leave) => leave._id),
           "Onaylandı"
         );
-
-        console.log(
-          `${startingLeaves.length} kullanıcının statüsü "İzinli" olarak güncellendi.`
-        );
-      } else {
-        console.log("Bugün başlayan izin bulunamadı.");
       }
     } catch (error) {
       console.error("Bir hata oluştu:", error);
@@ -163,13 +112,3 @@ const startAllJobs = () => {
 module.exports = {
   startAllJobs,
 };
-
-// Notlar:
-// 1. startStatusUpdateJob: Bu cron job, her kullanıcı için en son izin talebini kontrol eder. Eğer izin "Onaylandı" ve bitiş tarihi bugünden küçük veya eşitse, kullanıcının statüsünü "Aktif" yapar. Eğer izin "Onaylanmış (Yaklaşan)" ve bugünkü tarihe eşitse, kullanıcının statüsünü "İzinli" yapar.
-// 2. startLeaveStatusUpdateJob: Bu cron job, her 10 saniyede bir "Onaylanmış (Yaklaşan)" statüsündeki izinleri kontrol eder ve bugünkü tarihe eşitse statüsünü "Onaylandı" olarak günceller.
-
-// Altta ki kodda 30 saniyede bir
-// '*/30 * * * * *'
-
-// Her 24 satte saat 00:00 da
-// '0 0 * * *'
