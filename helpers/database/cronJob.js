@@ -11,6 +11,18 @@ const updateUserStatus = async (userId, status) => {
     );
   }
 };
+const updateAssignedAfterLeaveInfo = async (userId, info) => {
+  try {
+    await User.updateOne(
+      { _id: userId },
+      { $set: { assignedAfterLeaveInfo: info } }
+    );
+  } catch (error) {
+    throw new Error(
+      `assignedAfterLeaveInfo alanı güncellenirken hata oluştu: ${error.message}`
+    );
+  }
+};
 
 const updateLeaveStatus = async (leaveId, status) => {
   try {
@@ -52,11 +64,7 @@ const startStatusUpdateJob = () => {
           // Eğer izin "Onaylandı" ve bitiş tarihi bugüne eşitse veya bugünden küçükse kullanıcı "Aktif" yapılır
           if (leave.status === "Onaylandı" && leaveEndDate <= today) {
             await updateUserStatus(user._id, "Aktif");
-            await User.updateOne(
-              { _id: user._id },
-              { $set: { isAssignedDuringLeave: "" } } // Boş string ile alanı temizliyoruz
-            );
-
+            await updateAssignedAfterLeaveInfo(user._id, "");
             await updateLeaveStatus(leave._id, "Geçmiş İzin");
           }
 
