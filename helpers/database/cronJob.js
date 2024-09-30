@@ -52,6 +52,11 @@ const startStatusUpdateJob = () => {
           // Eğer izin "Onaylandı" ve bitiş tarihi bugüne eşitse veya bugünden küçükse kullanıcı "Aktif" yapılır
           if (leave.status === "Onaylandı" && leaveEndDate <= today) {
             await updateUserStatus(user._id, "Aktif");
+            await User.updateOne(
+              { _id: user._id },
+              { $set: { isAssignedDuringLeave: "" } } // Boş string ile alanı temizliyoruz
+            );
+
             await updateLeaveStatus(leave._id, "Geçmiş İzin");
           }
 

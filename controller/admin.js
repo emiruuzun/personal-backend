@@ -390,6 +390,31 @@ const addDailyWorkRecord = asyncErrorWrapper(async (req, res, next) => {
     );
   }
 
+  // Personelin izinli olup olmadığını kontrol et
+  const user = await User.findById(personnel_id);
+
+  if (!user) {
+    return next(new CustumError("Personel bulunamadı.", 404));
+  }
+
+  // Personel izinliyse ve iş ataması yapılıyorsa, izin dönüşü iş planlandığını belirten bir mesaj ekle
+  if (user.status === "İzinli") {
+    const leave = await Leave.findOne({
+      userId: personnel_id,
+      status: "Onaylandı",
+    })
+      .sort({ endDate: -1 })
+      .limit(1);
+
+    if (leave) {
+      const leaveEndDate = new Date(leave.endDate).toLocaleDateString("tr-TR");
+      const jobAfterLeaveMessage = `İzin dönüşü ${leaveEndDate} tarihinde planlanmış bir iş var.`;
+      user.assignedAfterLeaveInfo = jobAfterLeaveMessage; // Mesaj ekleniyor
+    }
+
+    await user.save(); // Güncellenmiş user verisini kaydediyoruz
+  }
+
   const existingRecord = await DailyWorkRecord.findOne({ personnel_id, date });
 
   let newRecord;

@@ -73,6 +73,10 @@ const UserSchema = new Schema({
     required: [true, "Please provide a group"],
     enum: ["Mekanik", "Boru", "Elektrik", "Aksaray", "Kapı", "Ofis"],
   },
+  assignedAfterLeaveInfo: {
+    type: String,
+    default: null, // Varsayılan olarak null, izin dönüşü iş atanmışsa bir mesaj burada tutulacak
+  },
 });
 
 UserSchema.methods.generateJwtFromUser = function () {
