@@ -23,6 +23,7 @@ const {
   addJobToCompany,
   getJobsByCompany,
   completeJob,
+  getAllJobsByCompanies,
 } = require("../controller/admin");
 
 const router = express.Router();
@@ -47,5 +48,6 @@ router.get("/company/delete/:id", deleteCompany);
 router.post("/company/:companyId/jobs", addJobToCompany);
 router.get("/company/:companyId/jobsAd", getJobsByCompany);
 router.get("/company/:companyId/:jobId", completeJob);
+router.get("/company/get-all-jobs", getAllJobsByCompanies);
 
 module.exports = router;

@@ -701,6 +701,50 @@ const getJobsByCompany = asyncErrorWrapper(async (req, res, next) => {
     data: company.jobs, // Firmanın işlerini döndür
   });
 });
+const getAllJobsByCompanies = asyncErrorWrapper(async (req, res, next) => {
+  // Tüm firmaları çekiyoruz
+  const companies = await CompanySc.find();
+
+  if (!companies || companies.length === 0) {
+    return res
+      .status(404)
+      .json({ success: false, message: "Hiçbir firma bulunamadı." });
+  }
+
+  // İşleri active ve completed olarak ayırmak için boş diziler oluşturuyoruz
+  const activeJobs = [];
+  const completedJobs = [];
+
+  // Her firmayı ve firmanın işlerini döngüyle işliyoruz
+  companies.forEach((company) => {
+    company.jobs.forEach((job) => {
+      if (job.status === "active") {
+        activeJobs.push({
+          companyId: company._id,
+          companyName: company.name,
+          jobName: job.jobName,
+          jobDescription: job.jobDescription,
+          status: job.status,
+        });
+      } else if (job.status === "completed") {
+        completedJobs.push({
+          companyId: company._id,
+          companyName: company.name,
+          jobName: job.jobName,
+          jobDescription: job.jobDescription,
+          status: job.status,
+        });
+      }
+    });
+  });
+
+  // Sonuçları active ve completed olarak JSON formatında döndürüyoruz
+  res.status(200).json({
+    success: true,
+    activeJobs,
+    completedJobs,
+  });
+});
 
 const completeJob = asyncErrorWrapper(async (req, res, next) => {
   const { companyId, jobId } = req.params;
@@ -747,4 +791,5 @@ module.exports = {
   addJobToCompany,
   getJobsByCompany,
   completeJob,
+  getAllJobsByCompanies
 };
