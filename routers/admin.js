@@ -24,6 +24,7 @@ const {
   getJobsByCompany,
   completeJob,
   getAllJobsByCompanies,
+  getRecentActivities,
 } = require("../controller/admin");
 
 const router = express.Router();
@@ -49,5 +50,6 @@ router.post("/company/:companyId/jobs", addJobToCompany);
 router.get("/company/:companyId/jobsAd", getJobsByCompany);
 router.get("/company/:companyId/:jobId", completeJob);
 router.get("/company/get-all-jobs", getAllJobsByCompanies);
+router.get("/activities/recent", getRecentActivities);
 
 module.exports = router;

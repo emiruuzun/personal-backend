@@ -1,6 +1,7 @@
 const onlineUsers = require("../util/onlineUsers");
 const CustumError = require("../helpers/error/CustumError");
 const User = require("../models/User");
+const Activity = require("../models/ActivitySchema ");
 const DailyWorkRecord = require("../models/DailyWorkRecordSchema ");
 const Leave = require("../models/LeaveRequest");
 const sendEmail = require("../helpers/libraries/sendEmail");
@@ -21,6 +22,7 @@ const register = asyncErrorWrapper(async (req, res, next) => {
     role,
     group,
   } = req.body;
+
   const existingUser = await User.findOne({ email });
   if (existingUser) {
     return next(
@@ -65,6 +67,13 @@ const register = asyncErrorWrapper(async (req, res, next) => {
 
     await sendEmail(mailOptions);
   }
+
+  // Aktivite kaydetme
+  const activity = new Activity({
+    type: "user_registration",
+    description: `Yeni kullanıcı kaydı: ${user.name}`,
+  });
+  await activity.save();
 
   res.status(201).json({
     success: true,
@@ -327,11 +336,18 @@ const companyRegister = asyncErrorWrapper(async (req, res, next) => {
     );
   }
 
-  await CompanySc.create({
+  const newCompany = await CompanySc.create({
     name,
     location,
     contact,
   });
+
+  // Aktivite kaydetme işlemi
+  const activity = new Activity({
+    type: "company_added",
+    description: `Yeni şirket eklendi: ${newCompany.name}`, // Şirket ismi açıklamada yer alır
+  });
+  await activity.save();
 
   res.status(201).json({
     success: true,
@@ -672,8 +688,16 @@ const addJobToCompany = asyncErrorWrapper(async (req, res, next) => {
         .json({ success: false, message: "Firma bulunamadı." });
     }
 
+    // Yeni iş ekleme
     company.jobs.push({ jobName, jobDescription }); // Yeni iş verilerini ekleyin
     await company.save();
+
+    // Aktivite kaydetme işlemi
+    const activity = new Activity({
+      type: "job_added",
+      description: `Yeni iş eklendi: ${jobName} - ${company.name}`, // İş ve firma ismini kullanarak açıklama oluşturuyoruz
+    });
+    await activity.save();
 
     res
       .status(200)
@@ -685,6 +709,7 @@ const addJobToCompany = asyncErrorWrapper(async (req, res, next) => {
       .json({ success: false, message: "İş eklenirken bir hata oluştu." });
   }
 });
+
 const getJobsByCompany = asyncErrorWrapper(async (req, res, next) => {
   const { companyId } = req.params;
 
@@ -764,11 +789,29 @@ const completeJob = asyncErrorWrapper(async (req, res, next) => {
   job.status = "completed";
   await company.save();
 
+  // Aktivite kaydetme işlemi
+  const activity = new Activity({
+    type: "task_completion",
+    description: `Görev tamamlandı: ${job.jobName} - ${company.name}`, // İş ve firma ismini kullanarak açıklama oluşturuyoruz
+  });
+  await activity.save();
+
   res.status(200).json({
     success: true,
     message: "Job has been completed successfully",
     data: job,
   });
+});
+
+const getRecentActivities = asyncErrorWrapper(async (req, res, next) => {
+  try {
+    const activities = await Activity.find().sort({ date: -1 }).limit(4); // Son 4 aktiviteyi getir
+    res.status(200).json({ success: true, activities });
+  } catch (error) {
+    res
+      .status(500)
+      .json({ success: false, message: "Son aktiviteler alınamadı." });
+  }
 });
 
 module.exports = {
@@ -791,5 +834,6 @@ module.exports = {
   addJobToCompany,
   getJobsByCompany,
   completeJob,
-  getAllJobsByCompanies
+  getAllJobsByCompanies,
+  getRecentActivities,
 };
