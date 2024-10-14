@@ -71,8 +71,16 @@ const UserSchema = new Schema({
   group: {
     type: String,
     required: [true, "Please provide a group"],
-    enum: ["Mekanik", "Boru", "Elektrik", "Aksaray", "Kapı", "Ofis"],
+    enum: ["Mekanik", "Boru", "Elektrik", "Aksaray", "Kapı", "Ofis", "Taşeron"],
   },
+  subgroup: {
+    type: String,
+    enum: ["Mekanik", "Elektrik", "Boru"],
+    required: function () {
+      return this.group === "Taşeron"; // Yalnızca Taşeron grubunda zorunlu
+    },
+  },
+
   assignedAfterLeaveInfo: {
     type: String,
     default: null, // Varsayılan olarak null, izin dönüşü iş atanmışsa bir mesaj burada tutulacak

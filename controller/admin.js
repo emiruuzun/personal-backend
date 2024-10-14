@@ -21,6 +21,7 @@ const register = asyncErrorWrapper(async (req, res, next) => {
     status,
     role,
     group,
+    subgroup, // subgroup'u ekledik
   } = req.body;
 
   const existingUser = await User.findOne({ email });
@@ -38,7 +39,8 @@ const register = asyncErrorWrapper(async (req, res, next) => {
     verificationToken = generateVerificationToken();
   }
 
-  const user = await User.create({
+  // Subgroup sadece Taşeron grubunda olmalıdır
+  const userData = {
     name,
     email,
     password,
@@ -50,7 +52,13 @@ const register = asyncErrorWrapper(async (req, res, next) => {
     group,
     verificationToken,
     isVerify: process.env.NODE_ENV === "development",
-  });
+  };
+
+  if (group === "Taşeron" && subgroup) {
+    userData.subgroup = subgroup; // Taşeron grubunda ise subgroup ekleniyor
+  }
+
+  const user = await User.create(userData);
 
   if (process.env.NODE_ENV !== "development") {
     const verifyURL = `${process.env.CLIENT_URL}=${verificationToken}`;
