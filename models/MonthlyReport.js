@@ -1,8 +1,12 @@
 const mongoose = require("mongoose");
 
-const DailyReportSchema = new mongoose.Schema({
-  date: {
-    type: Date,
+const MonthlyReportSchema = new mongoose.Schema({
+  month: {
+    type: Number, // Ay numarası (1 = Ocak, 12 = Aralık)
+    required: true,
+  },
+  year: {
+    type: Number, // Yıl
     required: true,
   },
   assigned_personnel: [
@@ -14,6 +18,12 @@ const DailyReportSchema = new mongoose.Schema({
       company_id: {
         type: mongoose.Schema.Types.ObjectId,
         ref: "CompanySc", // Company şemasına referans
+      },
+      total_hours_worked: {
+        type: Number, // O ay çalışılan toplam saat
+      },
+      overtime_hours: {
+        type: Number, // O ayda yapılan toplam mesai saati
       },
     },
   ],
@@ -27,4 +37,4 @@ const DailyReportSchema = new mongoose.Schema({
   ],
 });
 
-module.exports = mongoose.model("DailyReport", DailyReportSchema);
+module.exports = mongoose.model("MonthlyReport", MonthlyReportSchema);

@@ -4,6 +4,7 @@ const User = require("../models/User");
 const Activity = require("../models/ActivitySchema ");
 const DailyWorkRecord = require("../models/DailyWorkRecordSchema ");
 const Leave = require("../models/LeaveRequest");
+const MonthlyReport = require("../models/MonthlyReport");
 const sendEmail = require("../helpers/libraries/sendEmail");
 const generateVerificationToken = require("../util/emailVefiyToken");
 const Announcement = require("../models/Announcement");
@@ -822,6 +823,50 @@ const getRecentActivities = asyncErrorWrapper(async (req, res, next) => {
   }
 });
 
+const getMonthlyReport = asyncErrorWrapper(async (req, res, next) => {
+  const { month, year } = req.query;
+
+  if (!month || !year) {
+    return res
+      .status(400)
+      .json({ success: false, message: "Both month and year are required." });
+  }
+
+  // Ay numarasını 0 tabanlı hale getir (Ocak = 0, Şubat = 1, vb.)
+  const adjustedMonth = parseInt(month, 10) - 1;
+
+  // Girilen ayın başını ve sonunu belirle
+  const startDate = new Date(year, adjustedMonth, 1);
+  const endDate = new Date(year, adjustedMonth + 1, 0); // Ayın son günü
+
+  try {
+    // Verilen tarih aralığında iş kayıtlarını bul
+    const workRecords = await DailyWorkRecord.find({
+      date: { $gte: startDate, $lte: endDate },
+    })
+      .populate("personnel_id", "name")
+      .populate("company_id", "name");
+
+    // Eğer kayıt yoksa hata mesajı döndür
+    if (!workRecords || workRecords.length === 0) {
+      return res.status(404).json({
+        success: false,
+        message: "No work records found for this period.",
+      });
+    }
+
+    // İş kayıtlarını başarıyla döndür
+    res.status(200).json({
+      success: true,
+      data: workRecords,
+    });
+  } catch (error) {
+    res
+      .status(500)
+      .json({ success: false, message: "Error fetching monthly report." });
+  }
+});
+
 module.exports = {
   register,
   getAllUserAdmin,
@@ -844,4 +889,5 @@ module.exports = {
   completeJob,
   getAllJobsByCompanies,
   getRecentActivities,
+  getMonthlyReport,
 };

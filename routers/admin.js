@@ -25,6 +25,7 @@ const {
   completeJob,
   getAllJobsByCompanies,
   getRecentActivities,
+  getMonthlyReport,
 } = require("../controller/admin");
 
 const router = express.Router();
@@ -51,5 +52,6 @@ router.get("/company/:companyId/jobsAd", getJobsByCompany);
 router.get("/company/:companyId/:jobId", completeJob);
 router.get("/company/get-all-jobs", getAllJobsByCompanies);
 router.get("/activities/recent", getRecentActivities);
+router.get("/monthly-report", getMonthlyReport);
 
 module.exports = router;
