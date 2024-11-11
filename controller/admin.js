@@ -845,20 +845,45 @@ const getMonthlyReport = asyncErrorWrapper(async (req, res, next) => {
       date: { $gte: startDate, $lte: endDate },
     })
       .populate("personnel_id", "name group")
-      .populate("company_id", "name");
+      .populate("company_id", "name")
+      .lean(); // Veriyi değiştirilebilir hale getirmek için lean() kullanıyoruz
 
-    // Eğer kayıt yoksa hata mesajı döndür
-    if (!workRecords || workRecords.length === 0) {
-      return res.status(404).json({
-        success: false,
-        message: "No work records found for this period.",
-      });
-    }
+    // İzin kayıtlarını al
+    const leaveRecords = await Leave.find({
+      startDate: { $lte: endDate },
+      endDate: { $gte: startDate },
+      status: { $in: ["Onaylandı", "Geçmiş İzin"] },
+    });
+
+    // İzin günlerini kullanıcı bazında gruplayın
+    const leaveDaysByUser = leaveRecords.reduce((acc, leave) => {
+      const leaveDays = leave.leaveDays || 0;
+      const userId = leave.userId.toString();
+      if (acc[userId]) {
+        acc[userId] += leaveDays;
+      } else {
+        acc[userId] = leaveDays;
+      }
+      return acc;
+    }, {});
+
+    // WorkRecords içinde kullanıcıya göre izin günlerini ekle
+    const enrichedWorkRecords = workRecords.map((record) => {
+      const userId = record.personnel_id._id.toString();
+      const leaveDays = leaveDaysByUser[userId] || 0;
+      return {
+        ...record,
+        personnel_id: {
+          ...record.personnel_id,
+          leaveDays, // Kullanıcıya izin günlerini ekliyoruz
+        },
+      };
+    });
 
     // İş kayıtlarını başarıyla döndür
     res.status(200).json({
       success: true,
-      data: workRecords,
+      data: enrichedWorkRecords,
     });
   } catch (error) {
     res
