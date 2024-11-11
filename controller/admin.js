@@ -844,7 +844,7 @@ const getMonthlyReport = asyncErrorWrapper(async (req, res, next) => {
     const workRecords = await DailyWorkRecord.find({
       date: { $gte: startDate, $lte: endDate },
     })
-      .populate("personnel_id", "name")
+      .populate("personnel_id", "name group")
       .populate("company_id", "name");
 
     // Eğer kayıt yoksa hata mesajı döndür
