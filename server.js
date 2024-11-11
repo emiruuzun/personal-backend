@@ -31,10 +31,21 @@ const app = express();
 app.use(express.json());
 
 // Cors
-app.use(cors({
-  origin: 'http://localhost:4000',
-  credentials: true
-}));
+// app.use(cors({
+//   origin: 'http://localhost:4000',
+//   credentials: true
+// }));
+// Cors
+app.use(
+  cors({
+    origin: function (origin, callback) {
+      callback(null, true); // Herhangi bir origin'e izin ver
+    },
+    credentials: true, // Credentials modunu aç
+  })
+);
+
+
 
 // Cookie Parser
 app.use(cookieParser());
@@ -46,12 +57,31 @@ app.use(express.static(path.join(__dirname, "public")));
 const server = http.createServer(app);
 
 // Attach socket.io to the server
+// const io = socketio(server, {
+//   cors: {
+//     origin: 'http://localhost:4000',
+//     methods: ["GET", "POST"],
+//     credentials: true
+//   }
+// });
+
 const io = socketio(server, {
   cors: {
-    origin: 'http://localhost:4000',
+    origin: function (origin, callback) {
+      // Eğer belirli bir IP aralığından veya localhost'tan istek geliyorsa izin ver
+      if (
+        !origin ||
+        origin.startsWith("http://192.168.3.") ||
+        origin === "http://localhost:4000"
+      ) {
+        callback(null, true);
+      } else {
+        callback(new Error("CORS hatası: Bu origin erişime izinli değil."));
+      }
+    },
     methods: ["GET", "POST"],
-    credentials: true
-  }
+    credentials: true,
+  },
 });
 
 // Use a middleware to attach io to the req object

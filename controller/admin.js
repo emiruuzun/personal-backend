@@ -832,55 +832,85 @@ const getMonthlyReport = asyncErrorWrapper(async (req, res, next) => {
       .json({ success: false, message: "Both month and year are required." });
   }
 
-  // Ay numarasını 0 tabanlı hale getir (Ocak = 0, Şubat = 1, vb.)
   const adjustedMonth = parseInt(month, 10) - 1;
-
-  // Girilen ayın başını ve sonunu belirle
   const startDate = new Date(year, adjustedMonth, 1);
-  const endDate = new Date(year, adjustedMonth + 1, 0); // Ayın son günü
+  const endDate = new Date(year, adjustedMonth + 1, 0);
 
   try {
-    // Verilen tarih aralığında iş kayıtlarını bul
     const workRecords = await DailyWorkRecord.find({
       date: { $gte: startDate, $lte: endDate },
     })
       .populate("personnel_id", "name group")
       .populate("company_id", "name")
-      .lean(); // Veriyi değiştirilebilir hale getirmek için lean() kullanıyoruz
+      .lean();
 
-    // İzin kayıtlarını al
     const leaveRecords = await Leave.find({
       startDate: { $lte: endDate },
       endDate: { $gte: startDate },
       status: { $in: ["Onaylandı", "Geçmiş İzin"] },
     });
 
-    // İzin günlerini kullanıcı bazında gruplayın
     const leaveDaysByUser = leaveRecords.reduce((acc, leave) => {
       const leaveDays = leave.leaveDays || 0;
       const userId = leave.userId.toString();
-      if (acc[userId]) {
-        acc[userId] += leaveDays;
-      } else {
-        acc[userId] = leaveDays;
+      acc[userId] = (acc[userId] || 0) + leaveDays;
+      return acc;
+    }, {});
+
+    const workingDaysByUser = workRecords.reduce((acc, record) => {
+      const userId = record.personnel_id._id.toString();
+
+      if (record.company_id && record.job_start_time && record.job_end_time) {
+        const workDate = new Date(record.date);
+        const workDay = workDate.getDay();
+        const workDateStr = workDate.toDateString();
+
+        if (!acc[userId]) {
+          acc[userId] = { total: new Set(), weekdays: new Set(), weekends: new Set() };
+        }
+
+        acc[userId].total.add(workDateStr);
+
+        // Hafta içi (1 = Pazartesi, ..., 5 = Cuma)
+        if (workDay >= 1 && workDay <= 5) {
+          acc[userId].weekdays.add(workDateStr);
+        }
+        // Hafta sonu (0 = Pazar, 6 = Cumartesi)
+        else {
+          acc[userId].weekends.add(workDateStr);
+        }
       }
       return acc;
     }, {});
 
-    // WorkRecords içinde kullanıcıya göre izin günlerini ekle
     const enrichedWorkRecords = workRecords.map((record) => {
       const userId = record.personnel_id._id.toString();
       const leaveDays = leaveDaysByUser[userId] || 0;
+
+      const totalWorkingDays = workingDaysByUser[userId]
+        ? workingDaysByUser[userId].total.size
+        : 0;
+
+      const totalWorkingWeekdays = workingDaysByUser[userId]
+        ? workingDaysByUser[userId].weekdays.size
+        : 0;
+
+      const totalWorkingWeekends = workingDaysByUser[userId]
+        ? workingDaysByUser[userId].weekends.size
+        : 0;
+
       return {
         ...record,
         personnel_id: {
           ...record.personnel_id,
-          leaveDays, // Kullanıcıya izin günlerini ekliyoruz
+          leaveDays,
+          totalWorkingDays,
+          totalWorkingWeekdays,
+          totalWorkingWeekends,
         },
       };
     });
 
-    // İş kayıtlarını başarıyla döndür
     res.status(200).json({
       success: true,
       data: enrichedWorkRecords,
@@ -891,6 +921,7 @@ const getMonthlyReport = asyncErrorWrapper(async (req, res, next) => {
       .json({ success: false, message: "Error fetching monthly report." });
   }
 });
+
 
 module.exports = {
   register,
