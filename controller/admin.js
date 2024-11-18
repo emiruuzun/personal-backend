@@ -866,7 +866,11 @@ const getMonthlyReport = asyncErrorWrapper(async (req, res, next) => {
         const workDateStr = workDate.toDateString();
 
         if (!acc[userId]) {
-          acc[userId] = { total: new Set(), weekdays: new Set(), weekends: new Set() };
+          acc[userId] = {
+            total: new Set(),
+            weekdays: new Set(),
+            weekends: new Set(),
+          };
         }
 
         acc[userId].total.add(workDateStr);
@@ -922,6 +926,76 @@ const getMonthlyReport = asyncErrorWrapper(async (req, res, next) => {
   }
 });
 
+const leaveCreate = asyncErrorWrapper(async (req, res, next) => {
+  const { userId, startDate, endDate, leaveType, reason, leaveDays } = req.body;
+
+  // Eksik alan kontrolü
+  if (
+    !userId ||
+    !startDate ||
+    !endDate ||
+    !leaveType ||
+    !reason ||
+    !leaveDays
+  ) {
+    return next(new CustumError("All required fields must be provided", 400));
+  }
+
+  // Kullanıcıyı veritabanından getir
+  const user = await User.findById(userId);
+
+  if (!user) {
+    return next(new CustumError("User not found", 404));
+  }
+
+  // Tarihleri kontrol et
+  const today = new Date();
+  const start = new Date(startDate);
+  const end = new Date(endDate);
+
+  if (start > end) {
+    return next(
+      new CustumError("Start date cannot be after the end date", 400)
+    );
+  }
+
+  // Backend'de kullanıcı bilgilerini doldur
+  let leaveData = {
+    userId: user._id,
+    fullName: user.name,
+    position: user.position,
+    tcNo: user.tcNo,
+    contactNumber: user.contact,
+    periodYear: new Date().getFullYear(),
+    leaveType,
+    startDate,
+    endDate,
+    leaveDays,
+    reason,
+    status: "Onaylandı",
+  };
+
+  // Kullanıcı durumunu güncelle
+  if (start > today) {
+    // İzin başlangıç tarihi gelecekteyse
+    leaveData.status = "Onaylanmış (Yaklaşan)";
+  } else if (start <= today && end >= today) {
+    // İzin başlangıç tarihi geçmişte veya bugündeyse
+    await User.findByIdAndUpdate(userId, { status: "İzinli" });
+  } else if (end < today) {
+    // İzin bitiş tarihi geçmişteyse
+    leaveData.status = "Geçmiş İzin";
+  }
+
+  // Leave kaydı oluştur
+  const leave = await Leave.create(leaveData);
+
+  res.status(200).json({
+    success: true,
+    data: leave,
+    message: "Leave created and user status updated if applicable.",
+  });
+});
 
 module.exports = {
   register,
@@ -946,4 +1020,5 @@ module.exports = {
   getAllJobsByCompanies,
   getRecentActivities,
   getMonthlyReport,
+  leaveCreate,
 };

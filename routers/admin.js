@@ -26,6 +26,7 @@ const {
   getAllJobsByCompanies,
   getRecentActivities,
   getMonthlyReport,
+  leaveCreate,
 } = require("../controller/admin");
 
 const router = express.Router();
@@ -53,5 +54,6 @@ router.get("/company/:companyId/:jobId", completeJob);
 router.get("/company/get-all-jobs", getAllJobsByCompanies);
 router.get("/activities/recent", getRecentActivities);
 router.get("/monthly-report", getMonthlyReport);
+router.post("/leave/leave-create", leaveCreate);
 
 module.exports = router;
