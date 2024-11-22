@@ -640,7 +640,7 @@ const getDailyWorkRecords = asyncErrorWrapper(async (req, res, next) => {
   endOfDay.setHours(23, 59, 59, 999); // Günün sonu
 
   try {
-    // O tarihe ait atanmış personelleri ve atanmamış personelleri çek
+    // Güncel atanmış ve atanmamış iş kayıtlarını çek
     const assignedRecords = await DailyWorkRecord.find({
       date: { $gte: startOfDay, $lte: endOfDay }, // Tarih aralığına göre sorgula
       isAssigned: true,
@@ -651,11 +651,47 @@ const getDailyWorkRecords = asyncErrorWrapper(async (req, res, next) => {
       isAssigned: false,
     }).populate("personnel_id", "name");
 
+    // Eski iş kayıtlarını çek
+    const archivedRecords = await OldBusinessRecords.find({
+      date: { $gte: startOfDay, $lte: endOfDay }, // Tarih aralığına göre sorgula
+    }).populate("personnel_id", "name");
+    // Eski kayıtları atanmış ve atanmamış olarak ayır
+    const archivedAssignedRecords = archivedRecords.filter(
+      (record) => record.isAssigned
+    );
+    const archivedUnassignedRecords = archivedRecords.filter(
+      (record) => !record.isAssigned
+    );
+
+    // Güncel ve eski kayıtları birleştir
+    const combinedAssignedRecords = [
+      ...assignedRecords.map((record) => ({
+        ...record.toObject(),
+        isArchived: false, // Güncel kayıt
+      })),
+      ...archivedAssignedRecords.map((record) => ({
+        ...record.toObject(),
+        isArchived: true, // Eski kayıt
+      })),
+    ];
+
+    const combinedUnassignedRecords = [
+      ...unassignedRecords.map((record) => ({
+        ...record.toObject(),
+        isArchived: false, // Güncel kayıt
+      })),
+      ...archivedUnassignedRecords.map((record) => ({
+        ...record.toObject(),
+        isArchived: true, // Eski kayıt
+      })),
+    ];
+
+    // Birleştirilmiş kayıtları döndür
     res.status(200).json({
       success: true,
       data: {
-        assigned: assignedRecords,
-        unassigned: unassignedRecords,
+        assigned: combinedAssignedRecords,
+        unassigned: combinedUnassignedRecords,
       },
     });
   } catch (error) {
@@ -668,6 +704,7 @@ const getDailyWorkRecords = asyncErrorWrapper(async (req, res, next) => {
     );
   }
 });
+
 const deleteDailyWorkRecord = asyncErrorWrapper(async (req, res, next) => {
   const { id } = req.params;
 

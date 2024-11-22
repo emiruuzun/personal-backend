@@ -9,7 +9,7 @@ const OldBusinessRecordsSchema = new Schema({
   },
   personnel_id: {
     type: mongoose.Schema.Types.ObjectId,
-    ref: "User", // Kullanıcı şemasına referans
+    ref: "OldStaff", // Kullanıcı şemasına referans
     required: true,
   },
   company_id: {
