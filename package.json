@@ -4,7 +4,8 @@
   "description": "Express",
   "main": "server.js",
   "scripts": {
-    "dev": "nodemon server.js"
+    "dev": "nodemon server.js",
+    "start:production": "node server.js"
   },
   "keywords": [
     "express",

@@ -1,22 +1,20 @@
 const express = require("express");
 const dotenv = require("dotenv");
 const cors = require("cors");
-const cookieParser = require('cookie-parser');
+const cookieParser = require("cookie-parser");
 const path = require("path");
-const http = require('http');
-const onlineUsers = require('./util/onlineUsers');
-const socketio = require('socket.io');
+const http = require("http");
+const onlineUsers = require("./util/onlineUsers");
+const socketio = require("socket.io");
 const connectDatabase = require("./helpers/database/connectDatabase");
 const customErrorHandler = require("./middlewares/errors/cutomErrorHandler"); // Düzeltildi: 'cutomErrorHandler' -> 'customErrorHandler'
 const { startAllJobs } = require("./helpers/database/cronJob");
 const routers = require("./routers/index");
 // Socket.io connection event
 
-
-
 // Environment variables
 dotenv.config({
-  path: "./config/config.env"
+  path: "./config/config.env",
 });
 
 // MongoDB Connection
@@ -36,16 +34,20 @@ app.use(express.json());
 //   credentials: true
 // }));
 // Cors
+// app.use(
+//   cors({
+//     origin: function (origin, callback) {
+//       callback(null, true); // Herhangi bir origin'e izin ver
+//     },
+//     credentials: true, // Credentials modunu aç
+//   })
+// );
 app.use(
   cors({
-    origin: function (origin, callback) {
-      callback(null, true); // Herhangi bir origin'e izin ver
-    },
-    credentials: true, // Credentials modunu aç
+    origin: process.env.ORIGIN,
+    credentials: true,
   })
 );
-
-
 
 // Cookie Parser
 app.use(cookieParser());
@@ -67,19 +69,7 @@ const server = http.createServer(app);
 
 const io = socketio(server, {
   cors: {
-    origin: function (origin, callback) {
-      // Eğer belirli bir IP aralığından veya localhost'tan istek geliyorsa izin ver
-      if (
-        !origin ||
-        origin.startsWith("http://192.168.3.") ||
-        origin === "http://localhost:4000"
-      ) {
-        callback(null, true);
-      } else {
-        callback(new Error("CORS hatası: Bu origin erişime izinli değil."));
-      }
-    },
-    methods: ["GET", "POST"],
+    origin: process.env.ORIGIN,
     credentials: true,
   },
 });
@@ -91,33 +81,28 @@ app.use((req, res, next) => {
 });
 
 // Routers Middleware should be placed after the io middleware
-app.use("/v1/api", routers);
+app.use("/", routers);
 
 // Custom Error Handler
 app.use(customErrorHandler);
 
-
-
 // Socket İo Connection
-io.on('connection', (socket) => {
- 
+io.on("connection", (socket) => {
   const userId = socket.handshake.query.userId;
   if (userId) {
     onlineUsers[userId] = socket.id;
-    console.log(userId ,'user connected:', socket.id);
+    console.log(userId, "user connected:", socket.id);
   }
 
-  socket.on('disconnect', () => {
+  socket.on("disconnect", () => {
     if (userId && onlineUsers[userId]) {
       delete onlineUsers[userId];
     }
   });
-
-
 });
 
 // Start server
-const PORT = process.env.PORT ;
+const PORT = process.env.PORT;
 server.listen(PORT, () => {
   console.log(`App started on ${PORT} : ${process.env.NODE_ENV}`);
 });
