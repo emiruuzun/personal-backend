@@ -2,24 +2,19 @@ const mongoose = require("mongoose");
 const Schema = mongoose.Schema;
 
 const OldBusinessRecordsSchema = new Schema({
-  originalRecordId: {
-    type: mongoose.Schema.Types.ObjectId,
-    required: true,
-    ref: "DailyWorkRecord", // Orijinal iş kaydına referans
-  },
   personnel_id: {
     type: mongoose.Schema.Types.ObjectId,
-    ref: "OldStaff", // Kullanıcı şemasına referans
+    ref: "OldStaff", // Eski kullanıcı şemasına referans
     required: true,
   },
   company_id: {
     type: mongoose.Schema.Types.ObjectId,
-    ref: "CompanySc", // Firma şemasına referans
+    ref: "CompanySc", // Şirket referansı
     required: false,
   },
   job_id: {
     type: mongoose.Schema.Types.ObjectId,
-    ref: "CompanySc.jobs", // İş şemasına referans (CompanySc altında işler)
+    ref: "CompanySc.jobs", // İş referansı
     required: false,
   },
   date: {
@@ -28,26 +23,26 @@ const OldBusinessRecordsSchema = new Schema({
   },
   isAssigned: {
     type: Boolean,
-    default: false, // Varsayılan olarak false
+    default: false,
   },
   job_start_time: {
     type: String,
     required: function () {
       return this.isAssigned;
-    }, // isAssigned true ise gerekli
+    },
   },
   job_end_time: {
     type: String,
-    required: false, // İş bitiminde girilecek
+    required: false,
   },
   overtime_hours: {
     start_time: {
       type: String,
-      required: false, // Mesai başlangıç saati
+      required: false,
     },
     end_time: {
       type: String,
-      required: false, // Mesai bitiş saati
+      required: false,
     },
   },
   notes: {
@@ -55,8 +50,8 @@ const OldBusinessRecordsSchema = new Schema({
   },
   archivedAt: {
     type: Date,
-    required: true, // Kaydın arşivlendiği tarih
-    default: Date.now, // Varsayılan olarak şu anki tarih
+    required: true,
+    default: Date.now,
   },
 });
 

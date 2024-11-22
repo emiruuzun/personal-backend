@@ -2,9 +2,10 @@ const mongoose = require("mongoose");
 const Schema = mongoose.Schema;
 
 const OldLeaveSchema = new Schema({
-  originalLeaveId: {
+  personnel_id: {
     type: mongoose.Schema.Types.ObjectId,
-    required: true, // Orijinal izin kaydının ID'si (Leave koleksiyonundan)
+    ref: "OldStaff", // Eski kullanıcı şemasına referans
+    required: true,
   },
   fullName: {
     type: String,
@@ -49,11 +50,6 @@ const OldLeaveSchema = new Schema({
     type: String,
     required: true,
   },
-  userId: {
-    type: Schema.Types.ObjectId,
-    ref: "User",
-    required: true,
-  },
   status: {
     type: String,
     enum: [
@@ -67,14 +63,11 @@ const OldLeaveSchema = new Schema({
   },
   rejectionReason: {
     type: String,
-    required: function () {
-      return this.status === "Reddedildi";
-    },
     default: "",
   },
   archivedAt: {
     type: Date,
-    default: Date.now, // Arşivleme tarihi
+    default: Date.now,
   },
   createdAt: {
     type: Date,
@@ -82,4 +75,4 @@ const OldLeaveSchema = new Schema({
   },
 });
 
-module.exports = mongoose.model("OldLeaveSchema", OldLeaveSchema);
+module.exports = mongoose.model("OldLeave", OldLeaveSchema);

@@ -133,7 +133,7 @@ const deleteUserAdmin = asyncErrorWrapper(async (req, res, next) => {
       group: user.group,
       position: user.position,
       status: user.status,
-      archivedAt: new Date(), // Yedeklenme tarihi
+      archivedAt: new Date(),
       tcNo: user.tcNo,
       contact: user.contact,
       role: user.role,
@@ -141,43 +141,41 @@ const deleteUserAdmin = asyncErrorWrapper(async (req, res, next) => {
     });
     await oldStaff.save();
 
-    // Kullanıcının izinlerini OldLeave'e taşı
+    // İzinleri arşivle
     for (const leave of userLeaves) {
       const oldLeave = new OldLeave({
-        originalLeaveId: leave._id,
-        userId: leave.userId,
-        fullName: leave.fullName || user.name, // Kullanıcı adı
-        position: leave.position || user.position, // Pozisyon
-        periodYear: leave.periodYear || new Date(leave.startDate).getFullYear(), // Dönem yılı
-        tcNo: leave.tcNo || user.tcNo, // TC Kimlik No
+        personnel_id: oldStaff._id, // Eski personel referansı
+        fullName: leave.fullName || user.name,
+        position: leave.position || user.position,
+        periodYear: leave.periodYear || new Date(leave.startDate).getFullYear(),
+        tcNo: leave.tcNo || user.tcNo,
         leaveType: leave.leaveType,
         startDate: leave.startDate,
         endDate: leave.endDate,
         leaveDays: leave.leaveDays,
-        contactNumber: leave.contactNumber || user.contact, // İletişim numarası
+        contactNumber: leave.contactNumber || user.contact,
         reason: leave.reason,
         status: leave.status,
         rejectionReason: leave.rejectionReason || "",
-        createdAt: leave.createdAt || new Date(), // Varsayılan değer
-        archivedAt: new Date(), // Yedeklenme tarihi
+        createdAt: leave.createdAt || new Date(),
+        archivedAt: new Date(),
       });
       await oldLeave.save();
     }
 
-    // Kullanıcının iş kayıtlarını OldBusinessRecords'a taşı
+    // İş kayıtlarını arşivle
     for (const record of userWorkRecords) {
       const oldRecord = new OldBusinessRecords({
-        originalRecordId: record._id, // Eski kaydın ID'si
-        personnel_id: record.personnel_id, // Personelin ID'si
-        company_id: record.company_id || null, // Şirket ID'si (varsa)
-        job_id: record.job_id || null, // İş ID'si (varsa)
+        personnel_id: oldStaff._id, // Eski personel referansı
+        company_id: record.company_id || null,
+        job_id: record.job_id || null,
         date: record.date || null,
         isAssigned: record.isAssigned || false,
         job_start_time: record.job_start_time || null,
         job_end_time: record.job_end_time || null,
         overtime_hours: record.overtime_hours || {},
         notes: record.notes || "",
-        archivedAt: new Date(), // Yedeklenme tarihi
+        archivedAt: new Date(),
       });
       await oldRecord.save();
     }
