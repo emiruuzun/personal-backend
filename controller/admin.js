@@ -4,7 +4,9 @@ const User = require("../models/User");
 const Activity = require("../models/ActivitySchema ");
 const DailyWorkRecord = require("../models/DailyWorkRecordSchema ");
 const Leave = require("../models/LeaveRequest");
-const MonthlyReport = require("../models/MonthlyReport");
+const OldLeave = require("../models/OldLeaveSchema");
+const OldStaff = require("../models/OldStaffSchema");
+const OldBusinessRecords = require("../models/OldBusinessRecordsSchema ");
 const sendEmail = require("../helpers/libraries/sendEmail");
 const generateVerificationToken = require("../util/emailVefiyToken");
 const Announcement = require("../models/Announcement");
@@ -115,12 +117,90 @@ const deleteUserAdmin = asyncErrorWrapper(async (req, res, next) => {
     return next(new CustumError("There is no such user with that id", 404));
   }
 
-  await User.findByIdAndDelete(id);
+  // Kullanıcının izinlerini al
+  const userLeaves = await Leave.find({ userId: id });
 
-  res.status(200).json({
-    success: true,
-    message: "User and their answers deleted successfully",
-  });
+  // Kullanıcının günlük iş kayıtlarını al
+  const userWorkRecords = await DailyWorkRecord.find({ personnel_id: id });
+
+  // Arşivleme işlemleri
+  try {
+    // Kullanıcıyı OldStaff'a taşı
+    const oldStaff = new OldStaff({
+      originalUserId: user._id,
+      name: user.name,
+      email: user.email,
+      group: user.group,
+      position: user.position,
+      status: user.status,
+      archivedAt: new Date(), // Yedeklenme tarihi
+      tcNo: user.tcNo,
+      contact: user.contact,
+      role: user.role,
+      subgroup: user.subgroup || null,
+    });
+    await oldStaff.save();
+
+    // Kullanıcının izinlerini OldLeave'e taşı
+    for (const leave of userLeaves) {
+      const oldLeave = new OldLeave({
+        originalLeaveId: leave._id,
+        userId: leave.userId,
+        fullName: leave.fullName || user.name, // Kullanıcı adı
+        position: leave.position || user.position, // Pozisyon
+        periodYear: leave.periodYear || new Date(leave.startDate).getFullYear(), // Dönem yılı
+        tcNo: leave.tcNo || user.tcNo, // TC Kimlik No
+        leaveType: leave.leaveType,
+        startDate: leave.startDate,
+        endDate: leave.endDate,
+        leaveDays: leave.leaveDays,
+        contactNumber: leave.contactNumber || user.contact, // İletişim numarası
+        reason: leave.reason,
+        status: leave.status,
+        rejectionReason: leave.rejectionReason || "",
+        createdAt: leave.createdAt || new Date(), // Varsayılan değer
+        archivedAt: new Date(), // Yedeklenme tarihi
+      });
+      await oldLeave.save();
+    }
+
+    // Kullanıcının iş kayıtlarını OldBusinessRecords'a taşı
+    for (const record of userWorkRecords) {
+      const oldRecord = new OldBusinessRecords({
+        originalRecordId: record._id, // Eski kaydın ID'si
+        personnel_id: record.personnel_id, // Personelin ID'si
+        company_id: record.company_id || null, // Şirket ID'si (varsa)
+        job_id: record.job_id || null, // İş ID'si (varsa)
+        date: record.date || null,
+        isAssigned: record.isAssigned || false,
+        job_start_time: record.job_start_time || null,
+        job_end_time: record.job_end_time || null,
+        overtime_hours: record.overtime_hours || {},
+        notes: record.notes || "",
+        archivedAt: new Date(), // Yedeklenme tarihi
+      });
+      await oldRecord.save();
+    }
+
+    // Kullanıcıyı ve ilişkili kayıtlarını sil
+    await User.findByIdAndDelete(id);
+    await Leave.deleteMany({ userId: id });
+    await DailyWorkRecord.deleteMany({ personnel_id: id });
+
+    res.status(200).json({
+      success: true,
+      message:
+        "User and related records have been successfully deleted and archived.",
+    });
+  } catch (error) {
+    console.error("Error during deletion and archiving:", error);
+    return next(
+      new CustumError(
+        "An error occurred while deleting and archiving records.",
+        500
+      )
+    );
+  }
 });
 
 const toggleBlockUser = asyncErrorWrapper(async (req, res, next) => {
@@ -826,10 +906,11 @@ const getRecentActivities = asyncErrorWrapper(async (req, res, next) => {
 const getMonthlyReport = asyncErrorWrapper(async (req, res, next) => {
   const { month, year } = req.query;
 
-  if (!month || !year) {
-    return res
-      .status(400)
-      .json({ success: false, message: "Both month and year are required." });
+  if (!month || !year || isNaN(month) || isNaN(year)) {
+    return res.status(400).json({
+      success: false,
+      message: "Both month and year are required as valid numbers.",
+    });
   }
 
   const adjustedMonth = parseInt(month, 10) - 1;
@@ -837,6 +918,10 @@ const getMonthlyReport = asyncErrorWrapper(async (req, res, next) => {
   const endDate = new Date(year, adjustedMonth + 1, 0);
 
   try {
+    // Log date range
+    console.log("Fetching records for:", startDate, "to", endDate);
+
+    // Fetch work records
     const workRecords = await DailyWorkRecord.find({
       date: { $gte: startDate, $lte: endDate },
     })
@@ -844,21 +929,36 @@ const getMonthlyReport = asyncErrorWrapper(async (req, res, next) => {
       .populate("company_id", "name")
       .lean();
 
+    // Fetch leave records
     const leaveRecords = await Leave.find({
       startDate: { $lte: endDate },
       endDate: { $gte: startDate },
       status: { $in: ["Onaylandı", "Geçmiş İzin"] },
     });
 
+    // Log counts
+    console.log("Work Records Found:", workRecords.length);
+    console.log("Leave Records Found:", leaveRecords.length);
+
+    // Map leave records by user
     const leaveDaysByUser = leaveRecords.reduce((acc, leave) => {
       const leaveDays = leave.leaveDays || 0;
-      const userId = leave.userId.toString();
+      const userId = leave.userId?.toString();
+      if (!userId) {
+        console.warn("Leave record missing userId:", leave._id);
+        return acc;
+      }
       acc[userId] = (acc[userId] || 0) + leaveDays;
       return acc;
     }, {});
 
+    // Map work records by user
     const workingDaysByUser = workRecords.reduce((acc, record) => {
-      const userId = record.personnel_id._id.toString();
+      const userId = record.personnel_id?._id?.toString();
+
+      if (!userId) {
+        return acc;
+      }
 
       if (record.company_id && record.job_start_time && record.job_end_time) {
         const workDate = new Date(record.date);
@@ -875,11 +975,11 @@ const getMonthlyReport = asyncErrorWrapper(async (req, res, next) => {
 
         acc[userId].total.add(workDateStr);
 
-        // Hafta içi (1 = Pazartesi, ..., 5 = Cuma)
+        // Weekdays (1 = Monday to 5 = Friday)
         if (workDay >= 1 && workDay <= 5) {
           acc[userId].weekdays.add(workDateStr);
         }
-        // Hafta sonu (0 = Pazar, 6 = Cumartesi)
+        // Weekends (0 = Sunday, 6 = Saturday)
         else {
           acc[userId].weekends.add(workDateStr);
         }
@@ -887,42 +987,57 @@ const getMonthlyReport = asyncErrorWrapper(async (req, res, next) => {
       return acc;
     }, {});
 
-    const enrichedWorkRecords = workRecords.map((record) => {
-      const userId = record.personnel_id._id.toString();
-      const leaveDays = leaveDaysByUser[userId] || 0;
+    // Enrich work records with calculated data
+    const enrichedWorkRecords = workRecords
+      .map((record) => {
+        const userId = record.personnel_id?._id?.toString();
 
-      const totalWorkingDays = workingDaysByUser[userId]
-        ? workingDaysByUser[userId].total.size
-        : 0;
+        if (!userId) {
+          console.warn(
+            "Skipping record due to missing personnel_id:",
+            record._id
+          );
+          return null;
+        }
 
-      const totalWorkingWeekdays = workingDaysByUser[userId]
-        ? workingDaysByUser[userId].weekdays.size
-        : 0;
+        const leaveDays = leaveDaysByUser[userId] || 0;
 
-      const totalWorkingWeekends = workingDaysByUser[userId]
-        ? workingDaysByUser[userId].weekends.size
-        : 0;
+        const totalWorkingDays = workingDaysByUser[userId]
+          ? workingDaysByUser[userId].total.size
+          : 0;
 
-      return {
-        ...record,
-        personnel_id: {
-          ...record.personnel_id,
-          leaveDays,
-          totalWorkingDays,
-          totalWorkingWeekdays,
-          totalWorkingWeekends,
-        },
-      };
-    });
+        const totalWorkingWeekdays = workingDaysByUser[userId]
+          ? workingDaysByUser[userId].weekdays.size
+          : 0;
 
+        const totalWorkingWeekends = workingDaysByUser[userId]
+          ? workingDaysByUser[userId].weekends.size
+          : 0;
+
+        return {
+          ...record,
+          personnel_id: {
+            ...record.personnel_id,
+            leaveDays,
+            totalWorkingDays,
+            totalWorkingWeekdays,
+            totalWorkingWeekends,
+          },
+        };
+      })
+      .filter((record) => record !== null); // Remove null records
+
+    // Send response
     res.status(200).json({
       success: true,
       data: enrichedWorkRecords,
     });
   } catch (error) {
-    res
-      .status(500)
-      .json({ success: false, message: "Error fetching monthly report." });
+    console.error("Error in getMonthlyReport:", error.message, error.stack);
+    res.status(500).json({
+      success: false,
+      message: "Error fetching monthly report.",
+    });
   }
 });
 
