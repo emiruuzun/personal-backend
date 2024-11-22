@@ -40,8 +40,10 @@ jobs:
         password: ${{ secrets.SERVER_PASSWORD }}
         port: ${{ secrets.SERVER_PORT }}
         script: |
-          docker-compose down
-          docker rm -f $(docker ps -a -q --filter "name=nginx") || true
-          docker rm -f $(docker ps -a -q --filter "name=frontend") || true
-          docker rm -f $(docker ps -a -q --filter "name=backend") || true
-          docker-compose up -d --build
+            cd personel-faberk  # Doğru klasöre geçiş
+            docker-compose down
+            docker rm -f $(docker ps -a -q --filter "name=nginx") || true
+            docker rm -f $(docker ps -a -q --filter "name=frontend") || true
+            docker rm -f $(docker ps -a -q --filter "name=backend") || true
+            docker-compose up -d --build
+
