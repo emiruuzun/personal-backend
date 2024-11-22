@@ -82,6 +82,7 @@ app.use((req, res, next) => {
 
 // Routers Middleware should be placed after the io middleware
 app.use("/", routers);
+console.log("mrb")
 
 // Custom Error Handler
 app.use(customErrorHandler);
