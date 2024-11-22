@@ -40,17 +40,12 @@ jobs:
         password: ${{ secrets.SERVER_PASSWORD }}
         port: ${{ secrets.SERVER_PORT }}
         script: |
-            cd /root/personel-faberk  # Doğru klasöre geçiş
-            # Docker Compose işlemleri
-            if [ -f docker-compose.yml ]; then
-              echo "docker-compose.yml bulundu, işlemler başlatılıyor..."
-              docker-compose down
-              docker rm -f $(docker ps -a -q --filter "name=nginx") || true
-              docker rm -f $(docker ps -a -q --filter "name=frontend") || true
-              docker rm -f $(docker ps -a -q --filter "name=backend") || true
-              docker-compose up -d --build
-            else
-              echo "docker-compose.yml bulunamadı, işlem iptal edildi."
-              exit 1
-            fi
+            cd /personel-faberk  # Doğru klasöre geçiş
+            sudo docker compose down
+            sudo docker rm -f $(sudo docker ps -a -q --filter "name=nginx") || true
+            sudo docker rm -f $(sudo docker ps -a -q --filter "name=frontend") || true
+            sudo docker rm -f $(sudo docker ps -a -q --filter "name=backend") || true
+            sudo docker rm -f $(sudo docker ps -aq) || true
+            sudo docker rmi $(sudo docker images -q) || true
+            sudo docker compose up -d --build
 
