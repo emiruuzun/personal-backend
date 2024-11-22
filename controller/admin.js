@@ -977,7 +977,7 @@ const getMonthlyReport = asyncErrorWrapper(async (req, res, next) => {
     // Log date range
     console.log("Fetching records for:", startDate, "to", endDate);
 
-    // Fetch work records
+    // Fetch work records (DailyWorkRecord)
     const workRecords = await DailyWorkRecord.find({
       date: { $gte: startDate, $lte: endDate },
     })
@@ -985,8 +985,23 @@ const getMonthlyReport = asyncErrorWrapper(async (req, res, next) => {
       .populate("company_id", "name")
       .lean();
 
-    // Fetch leave records
+    // Fetch leave records (Leave)
     const leaveRecords = await Leave.find({
+      startDate: { $lte: endDate },
+      endDate: { $gte: startDate },
+      status: { $in: ["Onaylandı", "Geçmiş İzin"] },
+    });
+
+    // Fetch archived work records (OldBusinessRecords)
+    const archivedWorkRecords = await OldBusinessRecords.find({
+      date: { $gte: startDate, $lte: endDate },
+    })
+      .populate("personnel_id", "name group")
+      .populate("company_id", "name")
+      .lean();
+
+    // Fetch archived leave records (OldLeave)
+    const archivedLeaveRecords = await OldLeave.find({
       startDate: { $lte: endDate },
       endDate: { $gte: startDate },
       status: { $in: ["Onaylandı", "Geçmiş İzin"] },
@@ -995,6 +1010,8 @@ const getMonthlyReport = asyncErrorWrapper(async (req, res, next) => {
     // Log counts
     console.log("Work Records Found:", workRecords.length);
     console.log("Leave Records Found:", leaveRecords.length);
+    console.log("Archived Work Records Found:", archivedWorkRecords.length);
+    console.log("Archived Leave Records Found:", archivedLeaveRecords.length);
 
     // Map leave records by user
     const leaveDaysByUser = leaveRecords.reduce((acc, leave) => {
@@ -1007,6 +1024,21 @@ const getMonthlyReport = asyncErrorWrapper(async (req, res, next) => {
       acc[userId] = (acc[userId] || 0) + leaveDays;
       return acc;
     }, {});
+
+    // Map archived leave records by user (for archived leaves)
+    const archivedLeaveDaysByUser = archivedLeaveRecords.reduce(
+      (acc, leave) => {
+        const leaveDays = leave.leaveDays || 0;
+        const userId = leave.userId?.toString();
+        if (!userId) {
+          console.warn("Archived leave record missing userId:", leave._id);
+          return acc;
+        }
+        acc[userId] = (acc[userId] || 0) + leaveDays;
+        return acc;
+      },
+      {}
+    );
 
     // Map work records by user
     const workingDaysByUser = workRecords.reduce((acc, record) => {
@@ -1043,8 +1075,46 @@ const getMonthlyReport = asyncErrorWrapper(async (req, res, next) => {
       return acc;
     }, {});
 
-    // Enrich work records with calculated data
-    const enrichedWorkRecords = workRecords
+    // Map archived work records by user (for archived works)
+    const archivedWorkingDaysByUser = archivedWorkRecords.reduce(
+      (acc, record) => {
+        const userId = record.personnel_id?._id?.toString();
+
+        if (!userId) {
+          return acc;
+        }
+
+        if (record.company_id && record.job_start_time && record.job_end_time) {
+          const workDate = new Date(record.date);
+          const workDay = workDate.getDay();
+          const workDateStr = workDate.toDateString();
+
+          if (!acc[userId]) {
+            acc[userId] = {
+              total: new Set(),
+              weekdays: new Set(),
+              weekends: new Set(),
+            };
+          }
+
+          acc[userId].total.add(workDateStr);
+
+          // Weekdays (1 = Monday to 5 = Friday)
+          if (workDay >= 1 && workDay <= 5) {
+            acc[userId].weekdays.add(workDateStr);
+          }
+          // Weekends (0 = Sunday, 6 = Saturday)
+          else {
+            acc[userId].weekends.add(workDateStr);
+          }
+        }
+        return acc;
+      },
+      {}
+    );
+
+    // Combine both current and archived work and leave data
+    const enrichedWorkRecords = [...workRecords, ...archivedWorkRecords]
       .map((record) => {
         const userId = record.personnel_id?._id?.toString();
 
@@ -1056,18 +1126,24 @@ const getMonthlyReport = asyncErrorWrapper(async (req, res, next) => {
           return null;
         }
 
-        const leaveDays = leaveDaysByUser[userId] || 0;
-
+        const leaveDays =
+          leaveDaysByUser[userId] || archivedLeaveDaysByUser[userId] || 0;
         const totalWorkingDays = workingDaysByUser[userId]
           ? workingDaysByUser[userId].total.size
+          : archivedWorkingDaysByUser[userId]
+          ? archivedWorkingDaysByUser[userId].total.size
           : 0;
 
         const totalWorkingWeekdays = workingDaysByUser[userId]
           ? workingDaysByUser[userId].weekdays.size
+          : archivedWorkingDaysByUser[userId]
+          ? archivedWorkingDaysByUser[userId].weekdays.size
           : 0;
 
         const totalWorkingWeekends = workingDaysByUser[userId]
           ? workingDaysByUser[userId].weekends.size
+          : archivedWorkingDaysByUser[userId]
+          ? archivedWorkingDaysByUser[userId].weekends.size
           : 0;
 
         return {
@@ -1078,6 +1154,7 @@ const getMonthlyReport = asyncErrorWrapper(async (req, res, next) => {
             totalWorkingDays,
             totalWorkingWeekdays,
             totalWorkingWeekends,
+            isArchived: record.archivedAt ? true : false, // Add 'isArchived' flag
           },
         };
       })
