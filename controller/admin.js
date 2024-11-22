@@ -759,11 +759,31 @@ const getWorkRecordsByDateRange = asyncErrorWrapper(async (req, res, next) => {
       isAssigned: false,
     }).populate("personnel_id", "name");
 
+    // Eski iş kayıtlarını da al
+    const archivedAssignedRecords = await OldBusinessRecords.find({
+      date: { $gte: startOfDay, $lte: endOfDay }, // Tarih aralığına göre sorgula
+      isAssigned: true,
+    })
+      .populate("personnel_id", "name")
+      .populate({
+        path: "company_id",
+        select: "name jobs", // Hem şirket ismini hem de iş listesini seç
+        populate: {
+          path: "jobs", // 'jobs' alanı içerisinde referans verilen 'Job' koleksiyonunu populate et
+          select: "jobName", // Sadece işin ismini al
+        },
+      });
+
+    const archivedUnassignedRecords = await OldBusinessRecords.find({
+      date: { $gte: startOfDay, $lte: endOfDay }, // Tarih aralığına göre sorgula
+      isAssigned: false,
+    }).populate("personnel_id", "name");
+
     res.status(200).json({
       success: true,
       data: {
-        assigned: assignedRecords,
-        unassigned: unassignedRecords,
+        assigned: [...assignedRecords, ...archivedAssignedRecords],
+        unassigned: [...unassignedRecords, ...archivedUnassignedRecords],
       },
     });
   } catch (error) {
@@ -776,6 +796,7 @@ const getWorkRecordsByDateRange = asyncErrorWrapper(async (req, res, next) => {
     );
   }
 });
+
 const deleteCompany = asyncErrorWrapper(async (req, res, next) => {
   const { id } = req.params;
 
