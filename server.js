@@ -44,7 +44,7 @@ app.use(express.json());
 // );
 app.use(
   cors({
-    origin: process.env.ORIGIN,
+    origin: '*',
     credentials: true,
   })
 );
@@ -59,17 +59,10 @@ app.use(express.static(path.join(__dirname, "public")));
 const server = http.createServer(app);
 
 // Attach socket.io to the server
-// const io = socketio(server, {
-//   cors: {
-//     origin: 'http://localhost:4000',
-//     methods: ["GET", "POST"],
-//     credentials: true
-//   }
-// });
 
 const io = socketio(server, {
   cors: {
-    origin: process.env.ORIGIN,
+    origin: '*',
     credentials: true,
   },
 });
