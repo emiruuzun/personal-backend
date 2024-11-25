@@ -44,7 +44,7 @@ app.use(express.json());
 // );
 app.use(
   cors({
-    origin: '*',
+    origin: process.env.ORIGIN,
     credentials: true,
   })
 );
@@ -62,7 +62,7 @@ const server = http.createServer(app);
 
 const io = socketio(server, {
   cors: {
-    origin: '*',
+    origin: process.env.ORIGIN,
     credentials: true,
   },
 });
@@ -75,7 +75,7 @@ app.use((req, res, next) => {
 
 // Routers Middleware should be placed after the io middleware
 app.use("/", routers);
-console.log("mr.")
+console.log("mr.");
 
 // Custom Error Handler
 app.use(customErrorHandler);
