@@ -11,7 +11,9 @@ const sendJwtToClient = (user, res)=>{
 
         httpOnly :true,
         expires: new Date(Date.now() + parseInt(JWT_COOKIE) *  1000),
-        secure : NODE_ENV === "development" ? false : true
+        secure : NODE_ENV === "development" ? false : true,
+        sameSite: NODE_ENV === "development" ? "Lax" : "None"
+        
     })
     .json({
         success : true,
