@@ -42,14 +42,29 @@ jobs:
           script: |
             # Ortak proje klasörüne geçiş
             cd /root/shared-projects
-            sudo docker compose down
-            sudo docker compose up -d --build
+
+            # Personel backend servisini durdur
+            sudo docker compose stop personel-backend
+
+            # Personel backend container'ını kaldır
+            sudo docker compose rm -f personel-backend
+
+            # Kullanılan personel backend image'ini temizle
+            sudo docker rmi -f emiruuzun/personel-faberk-backend:latest || true
+
+            # En son personel backend image'ini indir
+            sudo docker pull emiruuzun/personel-faberk-backend:latest
+
+            # Personel backend servisini yeniden başlat
+            sudo docker compose up -d --build personel-backend
+
+            # Sistem durumunu kontrol et
+            sudo docker ps
+            sudo docker compose logs --tail=50 personel-backend
+
           # script: |
-          #     cd /shared-projects  # Doğru klasöre geçiş
-          #     sudo docker compose down
-          #     sudo docker rm -f $(sudo docker ps -a -q --filter "name=nginx") || true
-          #     sudo docker rm -f $(sudo docker ps -a -q --filter "name=frontend") || true
-          #     sudo docker rm -f $(sudo docker ps -a -q --filter "name=backend") || true
-          #     sudo docker rm -f $(sudo docker ps -aq) || true
-          #     sudo docker rmi $(sudo docker images -q) || true
-          #     sudo docker compose up -d --build
+          #   # Ortak proje klasörüne geçiş
+          #   cd /root/shared-projects
+          #   sudo docker compose down
+          #   sudo docker compose up -d --build
+          
