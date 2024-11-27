@@ -1029,9 +1029,12 @@ const getMonthlyReport = asyncErrorWrapper(async (req, res, next) => {
     const archivedLeaveDaysByUser = archivedLeaveRecords.reduce(
       (acc, leave) => {
         const leaveDays = leave.leaveDays || 0;
-        const userId = leave.userId?.toString();
+        const userId = leave.personnel_id?.toString(); // Eski kayıtlarda personnel_id kullanılıyor
         if (!userId) {
-          console.warn("Archived leave record missing userId:", leave._id);
+          console.warn(
+            "Archived leave record missing personnel_id:",
+            leave._id
+          );
           return acc;
         }
         acc[userId] = (acc[userId] || 0) + leaveDays;
