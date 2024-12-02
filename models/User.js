@@ -80,7 +80,11 @@ const UserSchema = new Schema({
       return this.group === "Taşeron"; // Yalnızca Taşeron grubunda zorunlu
     },
   },
-
+  employmentType: {
+    type: String,
+    enum: ["mavi yaka", "beyaz yaka"], // Yalnızca bu iki değeri kabul eder
+    required: true,
+  },
   assignedAfterLeaveInfo: {
     type: String,
     default: null, // Varsayılan olarak null, izin dönüşü iş atanmışsa bir mesaj burada tutulacak

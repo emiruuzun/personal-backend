@@ -24,7 +24,8 @@ const register = asyncErrorWrapper(async (req, res, next) => {
     status,
     role,
     group,
-    subgroup, // subgroup'u ekledik
+    subgroup,
+    employmentType,
   } = req.body;
 
   const existingUser = await User.findOne({ email });
@@ -54,6 +55,8 @@ const register = asyncErrorWrapper(async (req, res, next) => {
     status,
     group,
     verificationToken,
+    employmentType,
+
     isVerify: process.env.NODE_ENV === "development",
   };
 
@@ -974,14 +977,11 @@ const getMonthlyReport = asyncErrorWrapper(async (req, res, next) => {
   const endDate = new Date(year, adjustedMonth + 1, 0);
 
   try {
-    // Log date range
-    console.log("Fetching records for:", startDate, "to", endDate);
-
     // Fetch work records (DailyWorkRecord)
     const workRecords = await DailyWorkRecord.find({
       date: { $gte: startDate, $lte: endDate },
     })
-      .populate("personnel_id", "name group")
+      .populate("personnel_id", "name group employmentType")
       .populate("company_id", "name")
       .lean();
 
@@ -996,7 +996,7 @@ const getMonthlyReport = asyncErrorWrapper(async (req, res, next) => {
     const archivedWorkRecords = await OldBusinessRecords.find({
       date: { $gte: startDate, $lte: endDate },
     })
-      .populate("personnel_id", "name group")
+      .populate("personnel_id", "name group employmentType")
       .populate("company_id", "name")
       .lean();
 
@@ -1007,24 +1007,15 @@ const getMonthlyReport = asyncErrorWrapper(async (req, res, next) => {
       status: { $in: ["Onaylandı", "Geçmiş İzin"] },
     });
 
-    // Log counts
-    console.log("Work Records Found:", workRecords.length);
-    console.log("Leave Records Found:", leaveRecords.length);
-    console.log("Archived Work Records Found:", archivedWorkRecords.length);
-    console.log("Archived Leave Records Found:", archivedLeaveRecords.length);
-
     // Map leave records by user
-    // Toplam izin günleri ve izin tiplerini döndür
     const leaveDaysByUser = leaveRecords.reduce((acc, leave) => {
       const leaveDays = leave.leaveDays || 0;
-      const leaveType = leave.leaveType || "Bilinmiyor"; // Eğer leaveType yoksa varsayılan bir değer
+      const leaveType = leave.leaveType || "Bilinmiyor";
       const userId = leave.userId?.toString();
       if (!userId) {
-        console.warn("Leave record missing userId:", leave._id);
         return acc;
       }
 
-      // Kullanıcıyı ilk kez ekliyorsak
       if (!acc[userId]) {
         acc[userId] = {
           totalLeaveDays: 0,
@@ -1032,31 +1023,23 @@ const getMonthlyReport = asyncErrorWrapper(async (req, res, next) => {
         };
       }
 
-      // Toplam izin günlerini ekle
       acc[userId].totalLeaveDays += leaveDays;
-
-      // İzin tipine göre gün sayısını ekle
       acc[userId].leaveTypes[leaveType] =
         (acc[userId].leaveTypes[leaveType] || 0) + leaveDays;
 
       return acc;
     }, {});
 
-    // Benzer şekilde arşivlenmiş izin kayıtları için:
+    // Arşivlenmiş izin kayıtları için
     const archivedLeaveDaysByUser = archivedLeaveRecords.reduce(
       (acc, leave) => {
         const leaveDays = leave.leaveDays || 0;
-        const leaveType = leave.leaveType || "Bilinmiyor"; // Eski kayıtlarda leaveType
-        const userId = leave.personnel_id?.toString(); // Eski kayıtlarda personnel_id kullanılıyor
+        const leaveType = leave.leaveType || "Bilinmiyor";
+        const userId = leave.personnel_id?.toString();
         if (!userId) {
-          console.warn(
-            "Archived leave record missing personnel_id:",
-            leave._id
-          );
           return acc;
         }
 
-        // Kullanıcıyı ilk kez ekliyorsak
         if (!acc[userId]) {
           acc[userId] = {
             totalLeaveDays: 0,
@@ -1064,10 +1047,7 @@ const getMonthlyReport = asyncErrorWrapper(async (req, res, next) => {
           };
         }
 
-        // Toplam izin günlerini ekle
         acc[userId].totalLeaveDays += leaveDays;
-
-        // İzin tipine göre gün sayısını ekle
         acc[userId].leaveTypes[leaveType] =
           (acc[userId].leaveTypes[leaveType] || 0) + leaveDays;
 
@@ -1079,6 +1059,7 @@ const getMonthlyReport = asyncErrorWrapper(async (req, res, next) => {
     // Map work records by user
     const workingDaysByUser = workRecords.reduce((acc, record) => {
       const userId = record.personnel_id?._id?.toString();
+      const employmentType = record.personnel_id?.employmentType;
 
       if (!userId) {
         return acc;
@@ -1099,22 +1080,32 @@ const getMonthlyReport = asyncErrorWrapper(async (req, res, next) => {
 
         acc[userId].total.add(workDateStr);
 
-        // Weekdays (1 = Monday to 5 = Friday)
-        if (workDay >= 1 && workDay <= 5) {
-          acc[userId].weekdays.add(workDateStr);
+        // Mavi yaka için sadece Pazar (0) hafta sonu
+        if (employmentType === "mavi yaka") {
+          if (workDay === 0) {
+            // Sadece Pazar
+            acc[userId].weekends.add(workDateStr);
+          } else {
+            acc[userId].weekdays.add(workDateStr);
+          }
         }
-        // Weekends (0 = Sunday, 6 = Saturday)
+        // Beyaz yaka için Cumartesi (6) ve Pazar (0) hafta sonu
         else {
-          acc[userId].weekends.add(workDateStr);
+          if (workDay === 0 || workDay === 6) {
+            acc[userId].weekends.add(workDateStr);
+          } else {
+            acc[userId].weekdays.add(workDateStr);
+          }
         }
       }
       return acc;
     }, {});
 
-    // Map archived work records by user (for archived works)
+    // Map archived work records by user
     const archivedWorkingDaysByUser = archivedWorkRecords.reduce(
       (acc, record) => {
         const userId = record.personnel_id?._id?.toString();
+        const employmentType = record.personnel_id?.employmentType;
 
         if (!userId) {
           return acc;
@@ -1135,13 +1126,22 @@ const getMonthlyReport = asyncErrorWrapper(async (req, res, next) => {
 
           acc[userId].total.add(workDateStr);
 
-          // Weekdays (1 = Monday to 5 = Friday)
-          if (workDay >= 1 && workDay <= 5) {
-            acc[userId].weekdays.add(workDateStr);
+          // Mavi yaka için sadece Pazar (0) hafta sonu
+          if (employmentType === "mavi yaka") {
+            if (workDay === 0) {
+              // Sadece Pazar
+              acc[userId].weekends.add(workDateStr);
+            } else {
+              acc[userId].weekdays.add(workDateStr);
+            }
           }
-          // Weekends (0 = Sunday, 6 = Saturday)
+          // Beyaz yaka için Cumartesi (6) ve Pazar (0) hafta sonu
           else {
-            acc[userId].weekends.add(workDateStr);
+            if (workDay === 0 || workDay === 6) {
+              acc[userId].weekends.add(workDateStr);
+            } else {
+              acc[userId].weekdays.add(workDateStr);
+            }
           }
         }
         return acc;
@@ -1190,11 +1190,11 @@ const getMonthlyReport = asyncErrorWrapper(async (req, res, next) => {
             totalWorkingDays,
             totalWorkingWeekdays,
             totalWorkingWeekends,
-            isArchived: record.archivedAt ? true : false, // Add 'isArchived' flag
+            isArchived: record.archivedAt ? true : false,
           },
         };
       })
-      .filter((record) => record !== null); // Remove null records
+      .filter((record) => record !== null);
 
     // Send response
     res.status(200).json({
