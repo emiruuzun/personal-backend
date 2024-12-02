@@ -1014,21 +1014,39 @@ const getMonthlyReport = asyncErrorWrapper(async (req, res, next) => {
     console.log("Archived Leave Records Found:", archivedLeaveRecords.length);
 
     // Map leave records by user
+    // Toplam izin günleri ve izin tiplerini döndür
     const leaveDaysByUser = leaveRecords.reduce((acc, leave) => {
       const leaveDays = leave.leaveDays || 0;
+      const leaveType = leave.leaveType || "Bilinmiyor"; // Eğer leaveType yoksa varsayılan bir değer
       const userId = leave.userId?.toString();
       if (!userId) {
         console.warn("Leave record missing userId:", leave._id);
         return acc;
       }
-      acc[userId] = (acc[userId] || 0) + leaveDays;
+
+      // Kullanıcıyı ilk kez ekliyorsak
+      if (!acc[userId]) {
+        acc[userId] = {
+          totalLeaveDays: 0,
+          leaveTypes: {},
+        };
+      }
+
+      // Toplam izin günlerini ekle
+      acc[userId].totalLeaveDays += leaveDays;
+
+      // İzin tipine göre gün sayısını ekle
+      acc[userId].leaveTypes[leaveType] =
+        (acc[userId].leaveTypes[leaveType] || 0) + leaveDays;
+
       return acc;
     }, {});
 
-    // Map archived leave records by user (for archived leaves)
+    // Benzer şekilde arşivlenmiş izin kayıtları için:
     const archivedLeaveDaysByUser = archivedLeaveRecords.reduce(
       (acc, leave) => {
         const leaveDays = leave.leaveDays || 0;
+        const leaveType = leave.leaveType || "Bilinmiyor"; // Eski kayıtlarda leaveType
         const userId = leave.personnel_id?.toString(); // Eski kayıtlarda personnel_id kullanılıyor
         if (!userId) {
           console.warn(
@@ -1037,7 +1055,22 @@ const getMonthlyReport = asyncErrorWrapper(async (req, res, next) => {
           );
           return acc;
         }
-        acc[userId] = (acc[userId] || 0) + leaveDays;
+
+        // Kullanıcıyı ilk kez ekliyorsak
+        if (!acc[userId]) {
+          acc[userId] = {
+            totalLeaveDays: 0,
+            leaveTypes: {},
+          };
+        }
+
+        // Toplam izin günlerini ekle
+        acc[userId].totalLeaveDays += leaveDays;
+
+        // İzin tipine göre gün sayısını ekle
+        acc[userId].leaveTypes[leaveType] =
+          (acc[userId].leaveTypes[leaveType] || 0) + leaveDays;
+
         return acc;
       },
       {}
