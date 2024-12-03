@@ -23,7 +23,13 @@ const LeaveSchema = new Schema({
   leaveType: {
     type: String,
     required: true,
-    enum: ["Yıllık İzin", "Hastalık İzni", "Mazeret İzni"],
+    enum: [
+      "Yıllık İzin",
+      "Mazeret İzni",
+      "Ücretsiz İzin",
+      "Raporlu",
+      "Ücretli İzin",
+    ],
   },
   startDate: {
     type: Date,
